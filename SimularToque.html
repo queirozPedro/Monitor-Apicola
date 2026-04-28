@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Simular Toque</title>
+</head>
+<body>
+
+<h1 id="status">Aguardando toque...</h1>
+
+<button onclick="simular()">Simular toque</button>
+
+<script>
+  const ws = new WebSocket("ws://localhost:3000");
+
+  ws.onopen = () => {
+    console.log("Conectado ao servidor");
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.touch) {
+      document.getElementById("status").innerText = "🐝 TOQUE DETECTADO!";
+    }
+  };
+
+  function simular() {
+    ws.send(JSON.stringify({ touch: true }));
+  }
+</script>
+
+</body>
+</html>
