@@ -2,27 +2,111 @@
 <html>
 
 <head>
-  <title>Colmeia Monitor</title>
+  <title>Monitor Apícola</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0f14;
+      color: #e6e6e6;
+    }
+
+    header {
+      background: #121a24;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 1px solid #1f2a38;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      color: #ffffff;
+    }
+
+    #status {
+      margin-top: 5px;
+      font-size: 14px;
+      color: #9aa4b2;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      padding: 20px;
+    }
+
+    .card {
+      background: #121a24;
+      border: 1px solid #1f2a38;
+      border-radius: 10px;
+      padding: 12px;
+      transition: 0.2s;
+    }
+
+    .card:hover {
+      transform: scale(1.02);
+      border-color: #2d3b52;
+    }
+
+    .title {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #cbd5e1;
+    }
+
+    .status {
+      font-size: 13px;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .normal {
+      background: #14532d;
+      color: #4ade80;
+    }
+
+    .alert {
+      background: #7f1d1d;
+      color: #f87171;
+    }
+
+    .warning {
+      background: #78350f;
+      color: #fbbf24;
+    }
+  </style>
 </head>
 
-<body style="background:#111;color:white;font-family:Arial;text-align:center">
+<body>
 
-  <h1>🐝 Sistema Colmeias</h1>
+  <header>
+    <h1>Monitor Apícola</h1>
+    <div id="status">Conectando...</div>
+  </header>
 
-  <h2 id="status">Conectando</h2>
-
-  <div id="container"></div>
+  <div class="grid" id="container"></div>
 
   <script>
     const ws = new WebSocket("ws://localhost:3000");
 
     const container = document.getElementById("container");
+    const statusTop = document.getElementById("status");
 
-    // cria 33 colmeias na tela
     const colmeias = {};
 
     for (let i = 1; i <= 33; i++) {
       colmeias["colmeia" + i] = { status: "✅ NORMAL" };
+    }
+
+    function getClass(status) {
+      if (status.includes("FURTO")) return "alert";
+      if (status.includes("ESTRESSE")) return "warning";
+      return "normal";
     }
 
     function render() {
@@ -32,33 +116,40 @@
         const c = colmeias[nome];
 
         container.innerHTML += `
-          <div style="border:1px solid #444;margin:6px;padding:8px;border-radius:8px;display:inline-block;width:150px">
-            <h3>${nome}</h3>
-            <p>${c.status}</p>
+          <div class="card">
+            <div class="title">${nome}</div>
+            <div class="status ${getClass(c.status)}">
+              ${c.status}
+            </div>
           </div>
         `;
       });
     }
 
+    const randomId = Math.floor(Math.random() * 33) + 1;
+
     render();
+
+    ws.onopen = () => {
+      statusTop.innerText = "🟢 Conectado ao sistema";
+    };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      // se vier status geral (compatível com seu backend atual)
       if (data.status) {
-        colmeias.colmeia1.status = data.status;
+        colmeias["colmeia" + randomId].status = data.status;
       }
 
       render();
     };
 
     ws.onclose = () => {
-      document.getElementById("status").innerText = "❌ Conexão perdida";
+      statusTop.innerText = "🔴 Conexão perdida";
     };
 
     ws.onerror = () => {
-      document.getElementById("status").innerText = "❌ Erro na conexão";
+      statusTop.innerText = "⚠️ Erro de conexão";
     };
   </script>
 
