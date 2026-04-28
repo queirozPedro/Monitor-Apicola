@@ -5,5 +5,4 @@ Monitor Apícola é um sistema de monitoramento de colmeias em tempo real.
 
 npm start
 
-start MonitorApicola.html
-start SimularToque.html
+start public/index/html

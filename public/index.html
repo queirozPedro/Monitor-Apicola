@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Colmeia Monitor</title>
+</head>
+
+<body style="background:#111;color:white;font-family:Arial;text-align:center">
+
+  <h1>🐝 Sistema Colmeias</h1>
+
+  <h2 id="status">Conectando...</h2>
+
+  <div id="container"></div>
+
+  <script>
+    const ws = new WebSocket("ws://localhost:3000");
+
+    const container = document.getElementById("container");
+
+    // cria 33 colmeias na tela
+    const colmeias = {};
+
+    for (let i = 1; i <= 33; i++) {
+      colmeias["colmeia" + i] = { status: "✅ NORMAL" };
+    }
+
+    function render() {
+      container.innerHTML = "";
+
+      Object.keys(colmeias).forEach(nome => {
+        const c = colmeias[nome];
+
+        container.innerHTML += `
+          <div style="border:1px solid #444;margin:6px;padding:8px;border-radius:8px;display:inline-block;width:150px">
+            <h3>${nome}</h3>
+            <p>${c.status}</p>
+          </div>
+        `;
+      });
+    }
+
+    render();
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      // se vier status geral (compatível com seu backend atual)
+      if (data.status) {
+        colmeias.colmeia1.status = data.status;
+      }
+
+      render();
+    };
+
+    ws.onclose = () => {
+      document.getElementById("status").innerText = "❌ Conexão perdida";
+    };
+
+    ws.onerror = () => {
+      document.getElementById("status").innerText = "❌ Erro na conexão";
+    };
+  </script>
+
+</body>
+
+</html>

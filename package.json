@@ -19,6 +19,9 @@
   },
   "homepage": "https://github.com/queirozPedro/Monitor-Apicola#readme",
   "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
+    "express": "^5.2.1",
+    "serialport": "^13.0.0",
     "ws": "^8.20.0"
   }
 }
