@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Dashboard Colmeia</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0f14;
+      color: #e6e6e6;
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0 0 10px 0;
+    }
+
+    .sub {
+      color: #9aa4b2;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    canvas {
+      background: #121a24;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #121a24;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      text-align: center;
+      border-bottom: 1px solid #1f2a38;
+      font-size: 14px;
+    }
+
+    th {
+      background: #0f1620;
+      color: #cbd5e1;
+    }
+
+    .alert { color: #f87171; }
+    .warning { color: #fbbf24; }
+    .normal { color: #4ade80; }
+
+    button {
+      margin-top: 10px;
+      background: #1f2a38;
+      border: 1px solid #2d3b52;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Dashboard da Colmeia</h1>
+
+  <canvas id="grafico"></canvas>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Hora</th>
+        <th>Caixa</th>
+        <th>Peso</th>
+        <th>Ruído</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="table"></tbody>
+  </table>
+
+  <button onclick="limpar()">Limpar histórico</button>
+
+  <script>
+    const LIMIAR = 500;
+    const table = document.getElementById("table");
+
+    let chart;
+    let lastLength = 0;
+
+    function calcularStatus(caixa, peso, ruido) {
+      const caixaT = caixa < LIMIAR;
+      const pesoT = peso < LIMIAR;
+      const ruidoT = ruido < LIMIAR;
+
+      if ((caixaT && pesoT) || (caixaT && ruidoT)) {
+        return { text: "FURTO", cls: "alert" };
+      }
+
+      if (ruidoT && !caixaT) {
+        return { text: "ESTRESSE", cls: "warning" };
+      }
+
+      return { text: "NORMAL", cls: "normal" };
+    }
+
+    function criarGrafico() {
+      const ctx = document.getElementById("grafico");
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Caixa',
+              data: [],
+              borderColor: '#4ade80',
+              tension: 0.4,
+              pointRadius: 0
+            },
+            {
+              label: 'Peso',
+              data: [],
+              borderColor: '#fbbf24',
+              tension: 0.4,
+              pointRadius: 0
+            },
+            {
+              label: 'Ruído',
+              data: [],
+              borderColor: '#f87171',
+              tension: 0.4,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          animation: false, // 🔴 remove animação
+          plugins: {
+            legend: {
+              labels: { color: '#fff' }
+            }
+          },
+          scales: {
+            x: { ticks: { color: '#9aa4b2' } },
+            y: { ticks: { color: '#9aa4b2' } }
+          }
+        }
+      });
+    }
+
+    function adicionarPonto(d) {
+      chart.data.labels.push(d.time);
+      chart.data.datasets[0].data.push(d.caixa);
+      chart.data.datasets[1].data.push(d.peso);
+      chart.data.datasets[2].data.push(d.ruido);
+
+      // mantém só últimos 100 pontos
+      if (chart.data.labels.length > 100) {
+        chart.data.labels.shift();
+        chart.data.datasets.forEach(ds => ds.data.shift());
+      }
+
+      chart.update('none'); // 🔴 sem animação
+    }
+
+    function carregar() {
+      let dados = JSON.parse(localStorage.getItem("colmeia1") || "[]");
+
+      table.innerHTML = "";
+
+      if (!chart) criarGrafico();
+
+      for (let i = lastLength; i < dados.length; i++) {
+        const d = dados[i];
+
+        const status = calcularStatus(d.caixa, d.peso, d.ruido);
+
+        table.innerHTML += `
+          <tr>
+            <td>${d.time}</td>
+            <td>${d.caixa}</td>
+            <td>${d.peso}</td>
+            <td>${d.ruido}</td>
+            <td class="${status.cls}">${status.text}</td>
+          </tr>
+        `;
+
+        adicionarPonto(d);
+      }
+
+      lastLength = dados.length;
+    }
+
+    function limpar() {
+      localStorage.removeItem("colmeia1");
+
+      if (chart) {
+        chart.data.labels = [];
+        chart.data.datasets.forEach(d => d.data = []);
+        chart.update('none');
+      }
+
+      table.innerHTML = "";
+      lastLength = 0;
+    }
+
+    carregar();
+    setInterval(carregar, 2000);
+  </script>
+
+</body>
+
+</html>

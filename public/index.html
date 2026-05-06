@@ -32,9 +32,8 @@
     }
 
     .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 12px;
+      display: flex;
+      justify-content: center;
       padding: 20px;
     }
 
@@ -42,43 +41,30 @@
       background: #121a24;
       border: 1px solid #1f2a38;
       border-radius: 10px;
-      padding: 12px;
+      padding: 20px;
+      min-width: 220px;
+      text-align: center;
+      cursor: pointer;
       transition: 0.2s;
     }
 
     .card:hover {
-      transform: scale(1.02);
+      transform: scale(1.03);
       border-color: #2d3b52;
     }
 
-    .title {
-      font-size: 14px;
-      margin-bottom: 8px;
-      color: #cbd5e1;
-    }
-
     .status {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: bold;
-      padding: 4px 8px;
+      padding: 6px 10px;
       border-radius: 6px;
       display: inline-block;
     }
 
-    .normal {
-      background: #14532d;
-      color: #4ade80;
-    }
-
-    .alert {
-      background: #7f1d1d;
-      color: #f87171;
-    }
-
-    .warning {
-      background: #78350f;
-      color: #fbbf24;
-    }
+    .normal { background: #14532d; color: #4ade80; }
+    .alert { background: #7f1d1d; color: #f87171; }
+    .warning { background: #78350f; color: #fbbf24; }
+    .offline { background: #2b2f36; color: #9ca3af; }
   </style>
 </head>
 
@@ -89,46 +75,54 @@
     <div id="status">Conectando...</div>
   </header>
 
-  <div class="grid" id="container"></div>
+  <div class="grid">
+    <div class="card" id="colmeiaCard">
+      <div>Colmeia 1</div>
+      <div id="colmeia" class="status offline">🔌 DESCONECTADA</div>
+    </div>
+  </div>
 
   <script>
+    let historico = JSON.parse(localStorage.getItem("colmeia1") || "[]");
+
     const ws = new WebSocket("ws://localhost:3000");
 
-    const container = document.getElementById("container");
     const statusTop = document.getElementById("status");
+    const colmeia = document.getElementById("colmeia");
+    const colmeiaCard = document.getElementById("colmeiaCard");
 
-    const colmeias = {};
+    const LIMIAR = 500;
 
-    for (let i = 1; i <= 33; i++) {
-      colmeias["colmeia" + i] = { status: "✅ NORMAL" };
+    function setOffline() {
+      colmeia.innerText = "🔌 DESCONECTADA";
+      colmeia.className = "status offline";
     }
 
-    function getClass(status) {
-      if (status.includes("FURTO")) return "alert";
-      if (status.includes("ESTRESSE")) return "warning";
-      return "normal";
+    function analisar(data) {
+      const caixaTocado = data.caixa < LIMIAR;
+      const pesoTocado = data.peso < LIMIAR;
+      const ruidoTocado = data.ruido < LIMIAR;
+
+      let status = "✅ NORMAL";
+      let classe = "normal";
+
+      const furto =
+        (caixaTocado && pesoTocado) ||
+        (caixaTocado && ruidoTocado);
+
+      const estresse = (ruidoTocado && !caixaTocado);
+
+      if (furto) {
+        status = "🚨 POSSÍVEL FURTO";
+        classe = "alert";
+      } else if (estresse) {
+        status = "⚠️ ESTRESSE NAS ABELHAS";
+        classe = "warning";
+      }
+
+      colmeia.innerText = status;
+      colmeia.className = "status " + classe;
     }
-
-    function render() {
-      container.innerHTML = "";
-
-      Object.keys(colmeias).forEach(nome => {
-        const c = colmeias[nome];
-
-        container.innerHTML += `
-          <div class="card">
-            <div class="title">${nome}</div>
-            <div class="status ${getClass(c.status)}">
-              ${c.status}
-            </div>
-          </div>
-        `;
-      });
-    }
-
-    const randomId = Math.floor(Math.random() * 33) + 1;
-
-    render();
 
     ws.onopen = () => {
       statusTop.innerText = "🟢 Conectado ao sistema";
@@ -137,20 +131,31 @@
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      if (data.status) {
-        colmeias["colmeia" + randomId].status = data.status;
-      }
+      if (data.caixa !== undefined) {
+        analisar(data);
 
-      render();
+        historico.push({
+          ...data,
+          time: new Date().toLocaleTimeString()
+        });
+
+        localStorage.setItem("colmeia1", JSON.stringify(historico));
+      }
     };
 
     ws.onclose = () => {
       statusTop.innerText = "🔴 Conexão perdida";
+      setOffline();
     };
 
     ws.onerror = () => {
-      statusTop.innerText = "⚠️ Erro de conexão";
+      ws.close();
     };
+
+    // 🧠 CLIQUE → ABRE DASHBOARD
+    colmeiaCard.addEventListener("click", () => {
+      window.open("dashboard.html", "_blank");
+    });
   </script>
 
 </body>
