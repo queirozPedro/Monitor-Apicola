@@ -42,7 +42,7 @@
       border: 1px solid #1f2a38;
       border-radius: 10px;
       padding: 20px;
-      min-width: 220px;
+      min-width: 260px;
       text-align: center;
       cursor: pointer;
       transition: 0.2s;
@@ -59,12 +59,19 @@
       padding: 6px 10px;
       border-radius: 6px;
       display: inline-block;
+      margin-top: 10px;
     }
 
     .normal { background: #14532d; color: #4ade80; }
     .alert { background: #7f1d1d; color: #f87171; }
     .warning { background: #78350f; color: #fbbf24; }
     .offline { background: #2b2f36; color: #9ca3af; }
+
+    .coords {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #9aa4b2;
+    }
   </style>
 </head>
 
@@ -72,13 +79,20 @@
 
   <header>
     <h1>Monitor Apícola</h1>
-    <div id="status">Conectando...</div>
   </header>
 
   <div class="grid">
     <div class="card" id="colmeiaCard">
       <div>Colmeia 1</div>
-      <div id="colmeia" class="status offline">🔌 DESCONECTADA</div>
+
+      <div id="colmeia" class="status offline">
+        🔌 DESCONECTADA
+      </div>
+
+      <div class="coords" id="coords">
+        📍 Latitude: -- <br>
+        📍 Longitude: --
+      </div>
     </div>
   </div>
 
@@ -87,8 +101,8 @@
 
     const ws = new WebSocket("ws://localhost:3000");
 
-    const statusTop = document.getElementById("status");
     const colmeia = document.getElementById("colmeia");
+    const coords = document.getElementById("coords");
     const colmeiaCard = document.getElementById("colmeiaCard");
 
     const LIMIAR = 500;
@@ -96,6 +110,11 @@
     function setOffline() {
       colmeia.innerText = "🔌 DESCONECTADA";
       colmeia.className = "status offline";
+
+      coords.innerHTML = `
+        📍 Latitude: -- <br>
+        📍 Longitude: --
+      `;
     }
 
     function analisar(data) {
@@ -124,15 +143,21 @@
       colmeia.className = "status " + classe;
     }
 
-    ws.onopen = () => {
-      statusTop.innerText = "🟢 Conectado ao sistema";
-    };
+    function atualizarCoords(data) {
+      if (!data.latitude || !data.longitude) return;
+
+      coords.innerHTML = `
+        📍 Latitude: ${data.latitude} <br>
+        📍 Longitude: ${data.longitude}
+      `;
+    }
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
       if (data.caixa !== undefined) {
         analisar(data);
+        atualizarCoords(data);
 
         historico.push({
           ...data,
@@ -144,7 +169,6 @@
     };
 
     ws.onclose = () => {
-      statusTop.innerText = "🔴 Conexão perdida";
       setOffline();
     };
 

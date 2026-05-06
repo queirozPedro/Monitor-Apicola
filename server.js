@@ -63,6 +63,8 @@ function processarDados(a, b, c) {
     caixa: a,
     peso: b,
     ruido: c,
+    latitude: -3.7319,
+    longitude: -38.5267,
     timestamp: Date.now()
   };
 

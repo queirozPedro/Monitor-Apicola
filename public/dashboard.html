@@ -19,12 +19,6 @@
       margin: 0 0 10px 0;
     }
 
-    .sub {
-      color: #9aa4b2;
-      font-size: 14px;
-      margin-bottom: 20px;
-    }
-
     canvas {
       background: #121a24;
       border-radius: 10px;
@@ -88,8 +82,6 @@
     <tbody id="table"></tbody>
   </table>
 
-  <button onclick="limpar()">Limpar histórico</button>
-
   <script>
     const LIMIAR = 500;
     const table = document.getElementById("table");
@@ -121,36 +113,16 @@
         data: {
           labels: [],
           datasets: [
-            {
-              label: 'Caixa',
-              data: [],
-              borderColor: '#4ade80',
-              tension: 0.4,
-              pointRadius: 0
-            },
-            {
-              label: 'Peso',
-              data: [],
-              borderColor: '#fbbf24',
-              tension: 0.4,
-              pointRadius: 0
-            },
-            {
-              label: 'Ruído',
-              data: [],
-              borderColor: '#f87171',
-              tension: 0.4,
-              pointRadius: 0
-            }
+            { label: 'Caixa', data: [], borderColor: '#4ade80', tension: 0.4, pointRadius: 0 },
+            { label: 'Peso', data: [], borderColor: '#fbbf24', tension: 0.4, pointRadius: 0 },
+            { label: 'Ruído', data: [], borderColor: '#f87171', tension: 0.4, pointRadius: 0 }
           ]
         },
         options: {
           responsive: true,
-          animation: false, // 🔴 remove animação
+          animation: false,
           plugins: {
-            legend: {
-              labels: { color: '#fff' }
-            }
+            legend: { labels: { color: '#fff' } }
           },
           scales: {
             x: { ticks: { color: '#9aa4b2' } },
@@ -166,13 +138,12 @@
       chart.data.datasets[1].data.push(d.peso);
       chart.data.datasets[2].data.push(d.ruido);
 
-      // mantém só últimos 100 pontos
       if (chart.data.labels.length > 100) {
         chart.data.labels.shift();
         chart.data.datasets.forEach(ds => ds.data.shift());
       }
 
-      chart.update('none'); // 🔴 sem animação
+      chart.update('none');
     }
 
     function carregar() {
@@ -201,19 +172,6 @@
       }
 
       lastLength = dados.length;
-    }
-
-    function limpar() {
-      localStorage.removeItem("colmeia1");
-
-      if (chart) {
-        chart.data.labels = [];
-        chart.data.datasets.forEach(d => d.data = []);
-        chart.update('none');
-      }
-
-      table.innerHTML = "";
-      lastLength = 0;
     }
 
     carregar();
