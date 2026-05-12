@@ -25,12 +25,6 @@
       color: #ffffff;
     }
 
-    #status {
-      margin-top: 5px;
-      font-size: 14px;
-      color: #9aa4b2;
-    }
-
     .grid {
       display: flex;
       justify-content: center;
@@ -62,10 +56,10 @@
       margin-top: 10px;
     }
 
-    .normal { background: #14532d; color: #4ade80; }
-    .alert { background: #7f1d1d; color: #f87171; }
-    .warning { background: #78350f; color: #fbbf24; }
-    .offline { background: #2b2f36; color: #9ca3af; }
+    .normal   { background: #14532d; color: #4ade80; }
+    .alert    { background: #7f1d1d; color: #f87171; }
+    .warning  { background: #78350f; color: #fbbf24; }
+    .offline  { background: #2b2f36; color: #9ca3af; }
 
     .coords {
       margin-top: 10px;
@@ -97,89 +91,75 @@
   </div>
 
   <script>
-    let historico = JSON.parse(localStorage.getItem("colmeia1") || "[]");
-
-    const ws = new WebSocket("ws://localhost:3000");
+    const LIMIAR = 500;
 
     const colmeia = document.getElementById("colmeia");
     const coords = document.getElementById("coords");
-    const colmeiaCard = document.getElementById("colmeiaCard");
 
-    const LIMIAR = 500;
+    document.getElementById("colmeiaCard").addEventListener("click", () => {
+      window.open("dashboard.html", "_blank");
+    });
 
     function setOffline() {
       colmeia.innerText = "🔌 DESCONECTADA";
       colmeia.className = "status offline";
-
-      coords.innerHTML = `
-        📍 Latitude: -- <br>
-        📍 Longitude: --
-      `;
+      coords.innerHTML = "📍 Latitude: -- <br> 📍 Longitude: --";
     }
 
     function analisar(data) {
       const caixaTocado = data.caixa < LIMIAR;
-      const pesoTocado = data.peso < LIMIAR;
+      const pesoTocado  = data.peso  < LIMIAR;
       const ruidoTocado = data.ruido < LIMIAR;
 
-      let status = "✅ NORMAL";
-      let classe = "normal";
-
-      const furto =
-        (caixaTocado && pesoTocado) ||
-        (caixaTocado && ruidoTocado);
-
-      const estresse = (ruidoTocado && !caixaTocado);
+      const furto   = (caixaTocado && pesoTocado) || (caixaTocado && ruidoTocado);
+      const estresse = ruidoTocado && !caixaTocado;
 
       if (furto) {
-        status = "🚨 POSSÍVEL FURTO";
-        classe = "alert";
+        colmeia.innerText = "🚨 POSSÍVEL FURTO";
+        colmeia.className = "status alert";
       } else if (estresse) {
-        status = "⚠️ ESTRESSE NAS ABELHAS";
-        classe = "warning";
+        colmeia.innerText = "⚠️ ESTRESSE NAS ABELHAS";
+        colmeia.className = "status warning";
+      } else {
+        colmeia.innerText = "✅ NORMAL";
+        colmeia.className = "status normal";
       }
 
-      colmeia.innerText = status;
-      colmeia.className = "status " + classe;
+      if (data.latitude && data.longitude) {
+        coords.innerHTML = `📍 Latitude: ${data.latitude} <br> 📍 Longitude: ${data.longitude}`;
+      }
     }
 
-    function atualizarCoords(data) {
-      if (!data.latitude || !data.longitude) return;
-
-      coords.innerHTML = `
-        📍 Latitude: ${data.latitude} <br>
-        📍 Longitude: ${data.longitude}
-      `;
+    function salvarHistorico(data) {
+      const historico = JSON.parse(localStorage.getItem("colmeia1") || "[]");
+      historico.push({ ...data, time: new Date().toLocaleTimeString() });
+      localStorage.setItem("colmeia1", JSON.stringify(historico));
     }
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+    function conectarWS() {
+      const ws = new WebSocket("ws://localhost:3000");
 
-      if (data.caixa !== undefined) {
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (!data.conectado) {
+          setOffline();
+          return;
+        }
+
         analisar(data);
-        atualizarCoords(data);
+        salvarHistorico(data);
+      };
 
-        historico.push({
-          ...data,
-          time: new Date().toLocaleTimeString()
-        });
+      ws.onclose = () => {
+        setOffline();
+        setTimeout(conectarWS, 3000);
+      };
 
-        localStorage.setItem("colmeia1", JSON.stringify(historico));
-      }
-    };
+      ws.onerror = () => ws.close();
+    }
 
-    ws.onclose = () => {
-      setOffline();
-    };
-
-    ws.onerror = () => {
-      ws.close();
-    };
-
-    // 🧠 CLIQUE → ABRE DASHBOARD
-    colmeiaCard.addEventListener("click", () => {
-      window.open("dashboard.html", "_blank");
-    });
+    conectarWS();
   </script>
 
 </body>

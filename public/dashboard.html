@@ -7,129 +7,427 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #0b0f14;
       color: #e6e6e6;
-      padding: 20px;
     }
 
-    h1 {
-      margin: 0 0 10px 0;
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #121a24;
+      padding: 16px 24px;
+      border-bottom: 1px solid #1f2a38;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+      color: #fff;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .btn-back {
+      font-size: 13px;
+      color: #9aa4b2;
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid #1f2a38;
+      border-radius: 6px;
+      transition: 0.15s;
+    }
+
+    .btn-back:hover { background: #1f2a38; color: #e6e6e6; }
+
+    .btn-clear {
+      font-size: 13px;
+      color: #f87171;
+      background: transparent;
+      border: 1px solid #7f1d1d;
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+
+    .btn-clear:hover { background: #7f1d1d33; }
+
+    .content {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* --- Cards --- */
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: #121a24;
+      border: 1px solid #1f2a38;
+      border-top: 3px solid var(--color);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+
+    .card-label {
+      font-size: 12px;
+      color: #9aa4b2;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .card-value {
+      display: block;
+      font-size: 32px;
+      font-weight: bold;
+      color: var(--color);
+      margin-top: 6px;
+      line-height: 1;
+    }
+
+    .card-time {
+      font-size: 11px;
+      color: #4a5568;
+      margin-top: 8px;
+    }
+
+    .card-status {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .card-status.normal  { background: #14532d33; color: #4ade80; border: 1px solid #14532d; }
+    .card-status.warning { background: #78350f33; color: #fbbf24; border: 1px solid #78350f; }
+    .card-status.alert   { background: #7f1d1d33; color: #f87171; border: 1px solid #7f1d1d; }
+
+    /* --- Gráfico --- */
+
+    .chart-section {
+      background: #121a24;
+      border: 1px solid #1f2a38;
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .chart-title {
+      font-size: 13px;
+      color: #9aa4b2;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .toggles {
+      display: flex;
+      gap: 8px;
+    }
+
+    .toggle {
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 2px solid var(--color);
+      background: color-mix(in srgb, var(--color) 20%, transparent);
+      color: var(--color);
+      cursor: pointer;
+      transition: 0.15s;
+    }
+
+    .toggle.off {
+      background: transparent;
+      color: #4a5568;
+      border-color: #2d3748;
     }
 
     canvas {
-      background: #121a24;
-      border-radius: 10px;
-      padding: 10px;
-      margin-bottom: 20px;
+      max-height: 300px;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    /* --- Tabela --- */
+
+    .table-section {
       background: #121a24;
+      border: 1px solid #1f2a38;
       border-radius: 10px;
       overflow: hidden;
     }
 
-    th,
-    td {
-      padding: 10px;
-      text-align: center;
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
       border-bottom: 1px solid #1f2a38;
-      font-size: 14px;
+    }
+
+    .table-title {
+      font-size: 13px;
+      color: #9aa4b2;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .table-count {
+      font-size: 12px;
+      color: #4a5568;
+    }
+
+    .table-scroll {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .table-scroll::-webkit-scrollbar { width: 6px; }
+    .table-scroll::-webkit-scrollbar-track { background: #0b0f14; }
+    .table-scroll::-webkit-scrollbar-thumb { background: #1f2a38; border-radius: 3px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px 14px;
+      text-align: center;
+      border-bottom: 1px solid #1a2333;
+      font-size: 13px;
     }
 
     th {
       background: #0f1620;
-      color: #cbd5e1;
+      color: #9aa4b2;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
 
-    .alert { color: #f87171; }
-    .warning { color: #fbbf24; }
-    .normal { color: #4ade80; }
+    tbody tr:hover { background: #0f1620; }
 
-    button {
-      margin-top: 10px;
-      background: #1f2a38;
-      border: 1px solid #2d3b52;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
     }
+
+    .badge.alert   { background: #7f1d1d33; color: #f87171; border: 1px solid #7f1d1d; }
+    .badge.warning { background: #78350f33; color: #fbbf24; border: 1px solid #78350f; }
+    .badge.normal  { background: #14532d33; color: #4ade80; border: 1px solid #14532d; }
   </style>
 </head>
 
 <body>
 
-  <h1>Dashboard da Colmeia</h1>
+  <header>
+    <div class="header-left">
+      <a href="/" class="btn-back">← Voltar</a>
+      <h1>Dashboard da Colmeia</h1>
+    </div>
+    <button class="btn-clear" onclick="limparHistorico()">Limpar histórico</button>
+  </header>
 
-  <canvas id="grafico"></canvas>
+  <div class="content">
 
-  <table>
-    <thead>
-      <tr>
-        <th>Hora</th>
-        <th>Caixa</th>
-        <th>Peso</th>
-        <th>Ruído</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody id="table"></tbody>
-  </table>
+    <div class="cards">
+      <div class="card" style="--color: #4ade80">
+        <span class="card-label">Caixa</span>
+        <span class="card-value" id="val-caixa">--</span>
+        <div class="card-time" id="time-caixa">--</div>
+        <span class="card-status" id="status-caixa"></span>
+      </div>
+      <div class="card" style="--color: #fbbf24">
+        <span class="card-label">Peso</span>
+        <span class="card-value" id="val-peso">--</span>
+        <div class="card-time" id="time-peso">--</div>
+        <span class="card-status" id="status-peso"></span>
+      </div>
+      <div class="card" style="--color: #f87171">
+        <span class="card-label">Ruído</span>
+        <span class="card-value" id="val-ruido">--</span>
+        <div class="card-time" id="time-ruido">--</div>
+        <span class="card-status" id="status-ruido"></span>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-header">
+        <span class="chart-title">Leituras em tempo real</span>
+        <div class="toggles">
+          <button class="toggle" style="--color: #4ade80" data-index="0" onclick="toggleSensor(this)">Caixa</button>
+          <button class="toggle" style="--color: #fbbf24" data-index="1" onclick="toggleSensor(this)">Peso</button>
+          <button class="toggle" style="--color: #f87171" data-index="2" onclick="toggleSensor(this)">Ruído</button>
+        </div>
+      </div>
+      <canvas id="grafico"></canvas>
+    </div>
+
+    <div class="table-section">
+      <div class="table-header">
+        <span class="table-title">Histórico</span>
+        <span class="table-count" id="table-count"></span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Caixa</th>
+              <th>Peso</th>
+              <th>Ruído</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
 
   <script>
     const LIMIAR = 500;
-    const table = document.getElementById("table");
 
+    const tbody = document.getElementById("table-body");
     let chart;
     let lastLength = 0;
 
     function calcularStatus(caixa, peso, ruido) {
-      const caixaT = caixa < LIMIAR;
-      const pesoT = peso < LIMIAR;
-      const ruidoT = ruido < LIMIAR;
+      const caixaTocado = caixa < LIMIAR;
+      const pesoTocado  = peso  < LIMIAR;
+      const ruidoTocado = ruido < LIMIAR;
 
-      if ((caixaT && pesoT) || (caixaT && ruidoT)) {
+      if ((caixaTocado && pesoTocado) || (caixaTocado && ruidoTocado)) {
         return { text: "FURTO", cls: "alert" };
       }
-
-      if (ruidoT && !caixaT) {
+      if (ruidoTocado && !caixaTocado) {
         return { text: "ESTRESSE", cls: "warning" };
       }
-
       return { text: "NORMAL", cls: "normal" };
     }
 
     function criarGrafico() {
-      const ctx = document.getElementById("grafico");
-
-      chart = new Chart(ctx, {
-        type: 'line',
+      chart = new Chart(document.getElementById("grafico"), {
+        type: "line",
         data: {
           labels: [],
           datasets: [
-            { label: 'Caixa', data: [], borderColor: '#4ade80', tension: 0.4, pointRadius: 0 },
-            { label: 'Peso', data: [], borderColor: '#fbbf24', tension: 0.4, pointRadius: 0 },
-            { label: 'Ruído', data: [], borderColor: '#f87171', tension: 0.4, pointRadius: 0 }
+            { label: "Caixa", data: [], borderColor: "#4ade80", backgroundColor: "#4ade8015", fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+            { label: "Peso",  data: [], borderColor: "#fbbf24", backgroundColor: "#fbbf2415", fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+            { label: "Ruído", data: [], borderColor: "#f87171", backgroundColor: "#f8717115", fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }
           ]
         },
         options: {
           responsive: true,
           animation: false,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
           plugins: {
-            legend: { labels: { color: '#fff' } }
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#0f1620",
+              borderColor: "#1f2a38",
+              borderWidth: 1,
+              titleColor: "#9aa4b2",
+              bodyColor: "#e6e6e6",
+              padding: 10
+            }
           },
           scales: {
-            x: { ticks: { color: '#9aa4b2' } },
-            y: { ticks: { color: '#9aa4b2' } }
+            x: {
+              grid: { color: "#1a2333" },
+              ticks: {
+                color: "#9aa4b2",
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 8,
+                callback: (value, index) => index % 20 === 0 ? chart.data.labels[index] : ""
+              }
+            },
+            y: {
+              grid: { color: "#1a2333" },
+              ticks: { color: "#9aa4b2" },
+              beginAtZero: false,
+              suggestedMin: 200,
+              suggestedMax: 1300
+            }
           }
         }
       });
+    }
+
+    function toggleSensor(btn) {
+      const index = parseInt(btn.dataset.index);
+      const ds = chart.data.datasets[index];
+      ds.hidden = !ds.hidden;
+      btn.classList.toggle("off", ds.hidden);
+      chart.update();
+    }
+
+    function statusSensor(valor) {
+      if (valor >= 1000) return { text: "Normal",    cls: "normal"  };
+      if (valor >= 500)  return { text: "Alteração", cls: "warning" };
+                         return { text: "Alerta",    cls: "alert"   };
+    }
+
+    function atualizarCards(d) {
+      const sensores = [
+        { id: "caixa", valor: d.caixa },
+        { id: "peso",  valor: d.peso  },
+        { id: "ruido", valor: d.ruido }
+      ];
+
+      sensores.forEach(({ id, valor }) => {
+        const status = statusSensor(valor);
+        document.getElementById(`val-${id}`).textContent  = valor;
+        document.getElementById(`time-${id}`).textContent = `Última leitura: ${d.time}`;
+        const el = document.getElementById(`status-${id}`);
+        el.textContent = status.text;
+        el.className   = `card-status ${status.cls}`;
+      });
+    }
+
+    function adicionarLinha(d) {
+      const status = calcularStatus(d.caixa, d.peso, d.ruido);
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${d.time}</td>
+        <td>${d.caixa}</td>
+        <td>${d.peso}</td>
+        <td>${d.ruido}</td>
+        <td><span class="badge ${status.cls}">${status.text}</span></td>
+      `;
+      tbody.prepend(row);
     }
 
     function adicionarPonto(d) {
@@ -140,38 +438,51 @@
 
       if (chart.data.labels.length > 100) {
         chart.data.labels.shift();
-        chart.data.datasets.forEach(ds => ds.data.shift());
+        chart.data.datasets.forEach((ds) => ds.data.shift());
       }
 
-      chart.update('none');
+      chart.update("none");
     }
 
     function carregar() {
-      let dados = JSON.parse(localStorage.getItem("colmeia1") || "[]");
-
-      table.innerHTML = "";
+      const dados = JSON.parse(localStorage.getItem("colmeia1") || "[]");
 
       if (!chart) criarGrafico();
 
       for (let i = lastLength; i < dados.length; i++) {
-        const d = dados[i];
-
-        const status = calcularStatus(d.caixa, d.peso, d.ruido);
-
-        table.innerHTML += `
-          <tr>
-            <td>${d.time}</td>
-            <td>${d.caixa}</td>
-            <td>${d.peso}</td>
-            <td>${d.ruido}</td>
-            <td class="${status.cls}">${status.text}</td>
-          </tr>
-        `;
-
-        adicionarPonto(d);
+        adicionarPonto(dados[i]);
+        adicionarLinha(dados[i]);
       }
 
+      if (dados.length > 0) {
+        atualizarCards(dados[dados.length - 1]);
+      }
+
+      document.getElementById("table-count").textContent = dados.length > 0
+        ? `${dados.length} registros`
+        : "";
+
       lastLength = dados.length;
+    }
+
+    function limparHistorico() {
+      if (!confirm("Limpar todo o histórico?")) return;
+      localStorage.removeItem("colmeia1");
+      tbody.innerHTML = "";
+      lastLength = 0;
+      if (chart) {
+        chart.data.labels = [];
+        chart.data.datasets.forEach((ds) => ds.data = []);
+        chart.update();
+      }
+      ["caixa", "peso", "ruido"].forEach((sensor) => {
+        document.getElementById(`val-${sensor}`).textContent    = "--";
+        document.getElementById(`time-${sensor}`).textContent   = "--";
+        const el = document.getElementById(`status-${sensor}`);
+        el.textContent = "";
+        el.className   = "card-status";
+      });
+      document.getElementById("table-count").textContent = "";
     }
 
     carregar();
