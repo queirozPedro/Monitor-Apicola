@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Monitor Apícola</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0f14;
+      color: #e6e6e6;
+    }
+
+    header {
+      background: #121a24;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 1px solid #1f2a38;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      color: #ffffff;
+    }
+
+    .grid {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: #121a24;
+      border: 1px solid #1f2a38;
+      border-radius: 10px;
+      padding: 20px;
+      min-width: 260px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .card:hover {
+      transform: scale(1.03);
+      border-color: #2d3b52;
+    }
+
+    .status {
+      font-size: 14px;
+      font-weight: bold;
+      padding: 6px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 10px;
+    }
+
+    .normal   { background: #14532d; color: #4ade80; }
+    .alert    { background: #7f1d1d; color: #f87171; }
+    .warning  { background: #78350f; color: #fbbf24; }
+    .offline  { background: #2b2f36; color: #9ca3af; }
+
+    .coords {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #9aa4b2;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Monitor Apícola</h1>
+  </header>
+
+  <div class="grid">
+    <div class="card" id="colmeiaCard">
+      <div>Colmeia 1</div>
+
+      <div id="colmeia" class="status offline">
+        🔌 DESCONECTADA
+      </div>
+
+      <div class="coords" id="coords">
+        📍 Latitude: -- <br>
+        📍 Longitude: --
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LIMIAR = 500;
+
+    const colmeia = document.getElementById("colmeia");
+    const coords = document.getElementById("coords");
+
+    document.getElementById("colmeiaCard").addEventListener("click", () => {
+      window.open("dashboard.html", "_blank");
+    });
+
+    function setOffline() {
+      colmeia.innerText = "🔌 DESCONECTADA";
+      colmeia.className = "status offline";
+      coords.innerHTML = "📍 Latitude: -- <br> 📍 Longitude: --";
+    }
+
+    function analisar(data) {
+      const caixaTocado = data.caixa < LIMIAR;
+      const pesoTocado  = data.peso  < LIMIAR;
+      const ruidoTocado = data.ruido < LIMIAR;
+
+      const furto   = (caixaTocado && pesoTocado) || (caixaTocado && ruidoTocado);
+      const estresse = ruidoTocado && !caixaTocado;
+
+      if (furto) {
+        colmeia.innerText = "🚨 POSSÍVEL FURTO";
+        colmeia.className = "status alert";
+      } else if (estresse) {
+        colmeia.innerText = "⚠️ ESTRESSE NAS ABELHAS";
+        colmeia.className = "status warning";
+      } else {
+        colmeia.innerText = "✅ NORMAL";
+        colmeia.className = "status normal";
+      }
+
+      if (data.latitude && data.longitude) {
+        coords.innerHTML = `📍 Latitude: ${data.latitude} <br> 📍 Longitude: ${data.longitude}`;
+      }
+    }
+
+    function salvarHistorico(data) {
+      const historico = JSON.parse(localStorage.getItem("colmeia1") || "[]");
+      historico.push({ ...data, time: new Date().toLocaleTimeString() });
+      localStorage.setItem("colmeia1", JSON.stringify(historico));
+    }
+
+    function conectarWS() {
+      const ws = new WebSocket("ws://localhost:3000");
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (!data.conectado) {
+          setOffline();
+          return;
+        }
+
+        analisar(data);
+        salvarHistorico(data);
+      };
+
+      ws.onclose = () => {
+        setOffline();
+        setTimeout(conectarWS, 3000);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    conectarWS();
+  </script>
+
+</body>
+
+</html>

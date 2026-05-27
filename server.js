@@ -3,7 +3,7 @@ const { SerialPort } = require("serialport");
 const { ReadlineParser } = require("@serialport/parser-readline");
 const { WebSocketServer } = require("ws");
 
-const MODO_SIMULACAO = true;
+const MODO_SIMULACAO = false;
 const PORTA_SERIAL = "COM8";
 
 const app = express();
@@ -32,7 +32,7 @@ wss.on("connection", (ws) => {
 });
 
 function processarDados(a, b, c) {
-  broadcast({
+  broadcast({ // Trocar para envio em Multicast
     conectado: true,
     caixa: a,
     peso: b,

@@ -2,9 +2,9 @@
   "name": "monitor-apicola",
   "version": "1.0.0",
   "description": "Monitor Apícola é um sistema de monitoramento de colmeias em tempo real.",
-  "main": "index.js",
+  "main": "servidor/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node servidor/server.js"
   },
   "repository": {
     "type": "git",

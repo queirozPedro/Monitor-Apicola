@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin - Monitor Apícola</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0f14;
+      color: #e6e6e6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 20px;
+      color: #fff;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #4a5568;
+      margin-bottom: 32px;
+    }
+
+    .status-box {
+      background: #121a24;
+      border: 1px solid #1f2a38;
+      border-radius: 10px;
+      padding: 16px 28px;
+      font-size: 14px;
+      margin-bottom: 28px;
+      min-width: 280px;
+      text-align: center;
+    }
+
+    .status-box span {
+      color: #9aa4b2;
+      font-size: 12px;
+      display: block;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    #modo-display {
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    #conectado-display {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #4a5568;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    button {
+      padding: 11px 28px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .btn-serial {
+      background: #14532d33;
+      color: #4ade80;
+      border-color: #14532d;
+    }
+
+    .btn-serial:not(:disabled):hover {
+      background: #14532d66;
+    }
+
+    .btn-serial.active {
+      background: #14532d;
+      color: #4ade80;
+    }
+
+    .btn-sim {
+      background: #78350f33;
+      color: #fbbf24;
+      border-color: #78350f;
+    }
+
+    .btn-sim:not(:disabled):hover {
+      background: #78350f66;
+    }
+
+    .btn-sim.active {
+      background: #78350f;
+      color: #fbbf24;
+    }
+
+    a {
+      color: #4a5568;
+      text-decoration: none;
+      font-size: 13px;
+      transition: 0.15s;
+    }
+
+    a:hover { color: #9aa4b2; }
+
+    .feedback {
+      font-size: 12px;
+      color: #4a5568;
+      margin-top: 12px;
+      height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Painel Admin</h1>
+  <p class="subtitle">Monitor Apícola</p>
+
+  <div class="status-box">
+    <span>Modo atual</span>
+    <div id="modo-display">—</div>
+    <div id="conectado-display">—</div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn-serial" id="btn-serial" onclick="trocar('serial')">Serial (ESP32)</button>
+    <button class="btn-sim"    id="btn-sim"    onclick="trocar('simulacao')">Simulação</button>
+  </div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <a href="/">← Voltar ao monitor</a>
+
+  <script>
+    async function carregar() {
+      try {
+        const res = await fetch('/api/status');
+        const d = await res.json();
+
+        document.getElementById('modo-display').textContent =
+          d.modo === 'simulacao' ? 'Simulação' : 'Serial (ESP32)';
+
+        document.getElementById('conectado-display').textContent =
+          d.conectado ? '● Conectado' : '○ Desconectado';
+
+        document.getElementById('conectado-display').style.color =
+          d.conectado ? '#4ade80' : '#4a5568';
+
+        document.getElementById('btn-serial').classList.toggle('active', d.modo === 'serial');
+        document.getElementById('btn-sim').classList.toggle('active', d.modo === 'simulacao');
+      } catch {
+        document.getElementById('modo-display').textContent = 'Servidor indisponível';
+      }
+    }
+
+    async function trocar(modo) {
+      document.querySelectorAll('button').forEach(b => b.disabled = true);
+      document.getElementById('feedback').textContent = 'Alterando modo...';
+      try {
+        const res = await fetch('/api/modo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modo }),
+        });
+        const d = await res.json();
+        document.getElementById('feedback').textContent = d.ok ? '' : 'Erro: ' + d.erro;
+        await carregar();
+      } catch {
+        document.getElementById('feedback').textContent = 'Falha na requisição.';
+      }
+      document.querySelectorAll('button').forEach(b => b.disabled = false);
+    }
+
+    carregar();
+    setInterval(carregar, 3000);
+  </script>
+</body>
+</html>
