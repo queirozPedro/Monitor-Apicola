@@ -1,4 +1,4 @@
-# 🐝 Monitor-Apicola
+# Monitor-Apicola
 
 Sistema de monitoramento de colmeias em tempo real utilizando **ESP32 + Node.js + WebSocket + Interface Web**.
 
@@ -9,7 +9,16 @@ Sistema de monitoramento de colmeias em tempo real utilizando **ESP32 + Node.js 
 - [Node.js](https://nodejs.org) v18 ou superior
 - ESP32 conectado via USB (ou use o modo simulação para testar sem hardware)
 
----
+
+## Estrutura do projeto
+
+```
+Monitor-Apicola/
+├── colmeia/        # Firmware do ESP32
+├── cliente/        # Interface web (navegador)
+├── modulo-teste/   # Simulador de sensores
+└── servidor/       # Servidor Node.js
+```
 
 ## Instalação e Execução
 
@@ -28,10 +37,10 @@ npm install
 
 ### 3. Configure a porta serial
 
-Abra o arquivo `server.js` e ajuste a constante `PORTA_SERIAL` para a porta onde o ESP32 está conectado:
+Abra o arquivo `servidor/config.js` e ajuste `SERIAL_PORT` para a porta onde o ESP32 está conectado:
 
 ```js
-const PORTA_SERIAL = "COM8"; // Windows: COM3, COM4... | Linux/Mac: /dev/ttyUSB0
+SERIAL_PORT: 'COM8', // Windows: COM3, COM4... | Linux/Mac: /dev/ttyUSB0
 ```
 
 Para descobrir a porta correta:
@@ -55,19 +64,13 @@ Buscando conexão com ESP32...
 
 Abra o navegador em **http://localhost:3000**
 
----
-
 ## Testando sem ESP32 (modo simulação)
 
-Para rodar o sistema sem hardware, ative o modo simulação em `server.js`:
+Não é necessário alterar nenhum arquivo. Com o servidor rodando, acesse o painel admin:
 
-```js
-const MODO_SIMULACAO = true;
-```
+**http://localhost:3000/admin**
 
-O servidor passará a gerar leituras automáticas a cada 2 segundos, simulando sensores reais.
-
----
+Clique em **Simulação** para ativar leituras automáticas a cada 2 segundos. Para voltar ao hardware real, clique em **Serial (ESP32)**. A troca é feita em tempo real, sem reiniciar o servidor.
 
 ## Formato esperado do ESP32
 
