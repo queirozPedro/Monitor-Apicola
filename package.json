@@ -4,9 +4,11 @@
   "description": "Monitor Apícola é um sistema de monitoramento de colmeias em tempo real.",
   "main": "src/server.js",
   "scripts": {
-    "start":   "node src/server.js",
-    "colmeia": "node src/colmeias/colmeia.js",
-    "teste":   "node src/colmeias/modulo-teste.js"
+    "start":         "node src/server.js",
+    "colmeia":       "node src/colmeias/colmeia.js",
+    "teste":         "node src/colmeias/modulo-teste.js",
+    "colmeia-cloud": "cross-env WS_URL=wss://monitor-apicola.onrender.com node src/colmeias/colmeia.js",
+    "teste-cloud":   "cross-env WS_URL=wss://monitor-apicola.onrender.com node src/colmeias/modulo-teste.js"
   },
   "repository": {
     "type": "git",
@@ -25,5 +27,8 @@
     "express": "^5.2.1",
     "serialport": "^13.0.0",
     "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }
