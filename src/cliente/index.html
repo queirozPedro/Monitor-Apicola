@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Monitor Apícola</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* ── Variáveis de tema ───────────────────────────────────────────── */
+    :root {
+      --bg:          #0b0f14;
+      --surface:     #121a24;
+      --border:      #1f2a38;
+      --border-deep: #1a2333;
+      --surface-alt: #0f1620;
+      --text:        #e6e6e6;
+      --text-muted:  #9aa4b2;
+      --text-dim:    #4a5568;
+    }
+    body.light {
+      --bg:          #f0f4f8;
+      --surface:     #ffffff;
+      --border:      #d1d9e0;
+      --border-deep: #e2e8f0;
+      --surface-alt: #f8fafc;
+      --text:        #1a2332;
+      --text-muted:  #4a5568;
+      --text-dim:    #94a3b8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { margin: 0; font-size: 22px; color: var(--text); }
+
+    .btn-tema {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 18px;
+      cursor: pointer;
+      color: var(--text);
+      transition: 0.15s;
+      line-height: 1;
+    }
+    .btn-tema:hover { background: var(--border); }
+
+    /* ── Monitor grid ────────────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .card:hover { transform: scale(1.03); border-color: var(--text-muted); }
+
+    .card-id {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status {
+      font-size: 13px;
+      font-weight: bold;
+      padding: 5px 8px;
+      border-radius: 6px;
+      display: block;
+      white-space: nowrap;
+      overflow: clip;
+      margin-top: 4px;
+    }
+    .normal  { background: #14532d; color: #4ade80; }
+    .alert   { background: #7f1d1d; color: #f87171; }
+    .warning { background: #78350f; color: #fbbf24; }
+    .offline { background: var(--border); color: var(--text-muted); }
+
+    .coords { margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+
+    .latencia { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+    .latencia.ok    { color: #4ade80; }
+    .latencia.lento { color: #fbbf24; }
+
+    .vazio {
+      color: var(--text-dim);
+      font-size: 14px;
+      padding: 48px 0;
+      width: 100%;
+      text-align: center;
+    }
+
+    /* ── Modal overlay ───────────────────────────────────────────────── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #modal-overlay.aberto { display: flex; }
+
+    #modal {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 1100px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+      border-radius: 12px 12px 0 0;
+    }
+    #modal-header h2 { margin: 0; font-size: 18px; color: var(--text); }
+
+    .btn-fechar {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 15px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-fechar:hover { background: var(--border); color: var(--text); }
+
+    #modal-body {
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      flex: 1;
+      min-height: 0;
+    }
+    #modal-body::-webkit-scrollbar { width: 6px; }
+    #modal-body::-webkit-scrollbar-track { background: var(--bg); }
+    #modal-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Dashboard: sensor cards ─────────────────────────────────────── */
+    .d-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .d-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--color);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .d-card-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .d-card-value {
+      display: block;
+      font-size: 32px;
+      font-weight: bold;
+      color: var(--color);
+      margin-top: 6px;
+      line-height: 1;
+    }
+    .d-card-time { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+    .d-card-status {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .d-card-status.normal  { background: #14532d33; color: #4ade80; border: 1px solid #14532d; }
+    .d-card-status.warning { background: #78350f33; color: #fbbf24; border: 1px solid #78350f; }
+    .d-card-status.alert   { background: #7f1d1d33; color: #f87171; border: 1px solid #7f1d1d; }
+
+    /* ── Dashboard: rede cards ───────────────────────────────────────── */
+    .d-rede-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 66%;
+    }
+
+    /* ── Dashboard: gráfico ──────────────────────────────────────────── */
+    .d-chart-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .d-chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .d-chart-title {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .d-toggles { display: flex; gap: 8px; }
+    .d-toggle {
+      font-size: 12px;
+      font-weight: bold;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 2px solid var(--color);
+      background: color-mix(in srgb, var(--color) 20%, transparent);
+      color: var(--color);
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .d-toggle.off { background: transparent; color: var(--text-dim); border-color: var(--border); }
+    canvas { max-height: 300px; }
+
+    /* ── Dashboard: tabela ───────────────────────────────────────────── */
+    .d-table-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 320px;
+      flex-shrink: 0;
+    }
+    .d-table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .d-table-title {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .d-table-count { font-size: 12px; color: var(--text-dim); }
+
+    .d-table-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+    .d-table-scroll::-webkit-scrollbar { width: 6px; }
+    .d-table-scroll::-webkit-scrollbar-track { background: var(--bg); }
+    .d-table-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 10px 14px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-deep);
+      font-size: 13px;
+      color: var(--text);
+    }
+    th {
+      background: var(--surface-alt);
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tbody tr:hover { background: var(--surface-alt); }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .badge.alert   { background: #7f1d1d33; color: #f87171; border: 1px solid #7f1d1d; }
+    .badge.warning { background: #78350f33; color: #fbbf24; border: 1px solid #78350f; }
+    .badge.normal  { background: #14532d33; color: #4ade80; border: 1px solid #14532d; }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Monitor Apícola</h1>
+    <button class="btn-tema" id="btn-tema" onclick="alternarTema()">☀️</button>
+  </header>
+
+  <div class="grid" id="grid">
+    <div class="vazio" id="vazio">Nenhuma colmeia conectada.</div>
+  </div>
+
+  <!-- ── Modal Dashboard ───────────────────────────────────────────── -->
+  <div id="modal-overlay" onclick="fecharModalOverlay(event)">
+    <div id="modal">
+
+      <div id="modal-header">
+        <h2 id="modal-titulo">Dashboard</h2>
+        <button class="btn-fechar" onclick="fecharModal()">✕</button>
+      </div>
+
+      <div id="modal-body">
+
+        <div class="d-cards">
+          <div class="d-card" style="--color: #4ade80">
+            <span class="d-card-label">Caixa</span>
+            <span class="d-card-value" id="d-val-caixa">--</span>
+            <div class="d-card-time" id="d-time-caixa">--</div>
+            <span class="d-card-status" id="d-status-caixa"></span>
+          </div>
+          <div class="d-card" style="--color: #fbbf24">
+            <span class="d-card-label">Peso</span>
+            <span class="d-card-value" id="d-val-peso">--</span>
+            <div class="d-card-time" id="d-time-peso">--</div>
+            <span class="d-card-status" id="d-status-peso"></span>
+          </div>
+          <div class="d-card" style="--color: #f87171">
+            <span class="d-card-label">Ruído</span>
+            <span class="d-card-value" id="d-val-ruido">--</span>
+            <div class="d-card-time" id="d-time-ruido">--</div>
+            <span class="d-card-status" id="d-status-ruido"></span>
+          </div>
+        </div>
+
+        <div class="d-rede-cards">
+          <div class="d-card" style="--color: #38bdf8">
+            <span class="d-card-label">Latência</span>
+            <span class="d-card-value" id="d-val-latencia">--</span>
+            <div class="d-card-time">ms (RTT/2)</div>
+          </div>
+          <div class="d-card" style="--color: #a78bfa">
+            <span class="d-card-label">Jitter</span>
+            <span class="d-card-value" id="d-val-jitter">--</span>
+            <div class="d-card-time">ms (variação)</div>
+          </div>
+        </div>
+
+        <div class="d-chart-section">
+          <div class="d-chart-header">
+            <span class="d-chart-title">Leituras em tempo real</span>
+            <div class="d-toggles">
+              <button class="d-toggle" style="--color: #4ade80" data-index="0" onclick="toggleSensor(this)">Caixa</button>
+              <button class="d-toggle" style="--color: #fbbf24" data-index="1" onclick="toggleSensor(this)">Peso</button>
+              <button class="d-toggle" style="--color: #f87171" data-index="2" onclick="toggleSensor(this)">Ruído</button>
+            </div>
+          </div>
+          <canvas id="d-grafico"></canvas>
+        </div>
+
+        <div class="d-table-section">
+          <div class="d-table-header">
+            <span class="d-table-title">Histórico</span>
+            <span class="d-table-count" id="d-table-count"></span>
+          </div>
+          <div class="d-table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Hora</th><th>Caixa</th><th>Peso</th><th>Ruído</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="d-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LIMIAR = 500;
+
+    // ── Tema ──────────────────────────────────────────────────────────
+    const btnTema = document.getElementById('btn-tema');
+    if (localStorage.getItem('tema') === 'light') {
+      document.body.classList.add('light');
+      btnTema.textContent = '🌙';
+    }
+    function alternarTema() {
+      const light = document.body.classList.toggle('light');
+      localStorage.setItem('tema', light ? 'light' : 'dark');
+      btnTema.textContent = light ? '🌙' : '☀️';
+    }
+
+    // ── Monitor ───────────────────────────────────────────────────────
+    const grid    = document.getElementById('grid');
+    const vazio   = document.getElementById('vazio');
+    const colmeias = new Map(); // id → { card, statusEl, coordsEl, latenciaEl }
+
+    const textoStatus = {
+      alert:   '🚨 POSSÍVEL FURTO',
+      warning: '⚠️ ESTRESSE NAS ABELHAS',
+      normal:  '✅ NORMAL',
+      offline: '🔌 DESCONECTADA',
+    };
+
+    function calcularStatus(data) {
+      const cT = data.caixa < LIMIAR, pT = data.peso < LIMIAR, rT = data.ruido < LIMIAR;
+      if ((cT && pT) || (cT && rT)) return 'alert';
+      if (rT && !cT) return 'warning';
+      return 'normal';
+    }
+
+    function criarCard(id) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-id">${id}</div>
+        <div class="status offline">${textoStatus.offline}</div>
+        <div class="coords">📍 Latitude: --<br>📍 Longitude: --</div>
+        <div class="latencia">📶 --</div>
+      `;
+      card.addEventListener('click', () => abrirModal(id));
+      grid.appendChild(card);
+      vazio.style.display = 'none';
+      colmeias.set(id, {
+        card,
+        statusEl:   card.querySelector('.status'),
+        coordsEl:   card.querySelector('.coords'),
+        latenciaEl: card.querySelector('.latencia'),
+      });
+    }
+
+    function setOffline(id) {
+      const c = colmeias.get(id);
+      if (!c) return;
+      c.statusEl.textContent = textoStatus.offline;
+      c.statusEl.className   = 'status offline';
+    }
+
+    function atualizarCard(data) {
+      const c = colmeias.get(data.id);
+      if (!c) return;
+      const cls = calcularStatus(data);
+      c.statusEl.textContent = textoStatus[cls];
+      c.statusEl.className   = `status ${cls}`;
+      if (data.latitude && data.longitude) {
+        c.coordsEl.innerHTML = `📍 Latitude: ${data.latitude}<br>📍 Longitude: ${data.longitude}`;
+      }
+    }
+
+    function atualizarLatenciaCard(msg) {
+      const c = colmeias.get(msg.id);
+      if (!c || msg.latencia === null) return;
+      const ms  = msg.latencia.toFixed(1);
+      const cls = msg.latencia < 50 ? 'ok' : 'lento';
+      c.latenciaEl.textContent = `📶 ${ms}ms`;
+      c.latenciaEl.className   = `latencia ${cls}`;
+    }
+
+    // ── Modal ─────────────────────────────────────────────────────────
+    let modalColmeiaId = null;
+    let grafico = null;
+    const tbody = document.getElementById('d-table-body');
+
+    function abrirModal(id) {
+      modalColmeiaId = id;
+      document.getElementById('modal-titulo').textContent = `Dashboard — ${id}`;
+      document.getElementById('modal-overlay').classList.add('aberto');
+      document.getElementById('modal-body').scrollTop = 0;
+      resetarDashboard();
+      if (!grafico) criarGrafico();
+      carregarHistorico(id);
+    }
+
+    function fecharModal() {
+      document.getElementById('modal-overlay').classList.remove('aberto');
+      modalColmeiaId = null;
+    }
+
+    function fecharModalOverlay(event) {
+      if (event.target === document.getElementById('modal-overlay')) fecharModal();
+    }
+
+    function resetarDashboard() {
+      tbody.innerHTML = '';
+      document.getElementById('d-table-count').textContent = '';
+      document.getElementById('d-val-latencia').textContent = '--';
+      document.getElementById('d-val-jitter').textContent   = '--';
+      ['caixa', 'peso', 'ruido'].forEach((s) => {
+        document.getElementById(`d-val-${s}`).textContent  = '--';
+        document.getElementById(`d-time-${s}`).textContent = '--';
+        const el = document.getElementById(`d-status-${s}`);
+        el.textContent = '';
+        el.className   = 'd-card-status';
+      });
+      if (grafico) {
+        grafico.data.labels = [];
+        grafico.data.datasets.forEach((ds, i) => {
+          ds.data   = [];
+          ds.hidden = false;
+          const btn = document.querySelector(`.d-toggle[data-index="${i}"]`);
+          if (btn) btn.classList.remove('off');
+        });
+        grafico.update();
+      }
+    }
+
+    // ── Gráfico ───────────────────────────────────────────────────────
+    function criarGrafico() {
+      grafico = new Chart(document.getElementById('d-grafico'), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            { label: 'Caixa', data: [], borderColor: '#4ade80', backgroundColor: '#4ade8015', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+            { label: 'Peso',  data: [], borderColor: '#fbbf24', backgroundColor: '#fbbf2415', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+            { label: 'Ruído', data: [], borderColor: '#f87171', backgroundColor: '#f8717115', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+          ],
+        },
+        options: {
+          responsive: true,
+          animation: false,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f1620',
+              borderColor: '#1f2a38',
+              borderWidth: 1,
+              titleColor: '#9aa4b2',
+              bodyColor: '#e6e6e6',
+              padding: 10,
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: '#1a2333' },
+              ticks: {
+                color: '#9aa4b2', maxRotation: 0, autoSkip: true, maxTicksLimit: 8,
+                callback: (v, i) => i % 20 === 0 ? grafico.data.labels[i] : '',
+              },
+            },
+            y: {
+              grid: { color: '#1a2333' },
+              ticks: { color: '#9aa4b2' },
+              beginAtZero: false,
+              suggestedMin: 200,
+              suggestedMax: 1300,
+            },
+          },
+        },
+      });
+    }
+
+    function toggleSensor(btn) {
+      const index = parseInt(btn.dataset.index);
+      const ds = grafico.data.datasets[index];
+      ds.hidden = !ds.hidden;
+      btn.classList.toggle('off', ds.hidden);
+      grafico.update();
+    }
+
+    // ── Dashboard helpers ─────────────────────────────────────────────
+    function statusSensor(valor) {
+      if (valor >= 1000) return { text: 'Normal',    cls: 'normal'  };
+      if (valor >= 500)  return { text: 'Alteração', cls: 'warning' };
+                         return { text: 'Alerta',    cls: 'alert'   };
+    }
+
+    function calcularStatusGlobal(caixa, peso, ruido) {
+      const cT = caixa < LIMIAR, pT = peso < LIMIAR, rT = ruido < LIMIAR;
+      if ((cT && pT) || (cT && rT)) return { text: 'FURTO',    cls: 'alert'   };
+      if (rT && !cT)                 return { text: 'ESTRESSE', cls: 'warning' };
+      return { text: 'NORMAL', cls: 'normal' };
+    }
+
+    function atualizarCardsD(d) {
+      const hora = new Date(d.timestamp).toLocaleTimeString();
+      [['caixa', d.caixa], ['peso', d.peso], ['ruido', d.ruido]].forEach(([key, valor]) => {
+        const s = statusSensor(valor);
+        document.getElementById(`d-val-${key}`).textContent  = valor;
+        document.getElementById(`d-time-${key}`).textContent = `Última leitura: ${hora}`;
+        const el = document.getElementById(`d-status-${key}`);
+        el.textContent = s.text;
+        el.className   = `d-card-status ${s.cls}`;
+      });
+    }
+
+    function adicionarPonto(d) {
+      const hora = new Date(d.timestamp).toLocaleTimeString();
+      grafico.data.labels.push(hora);
+      grafico.data.datasets[0].data.push(d.caixa);
+      grafico.data.datasets[1].data.push(d.peso);
+      grafico.data.datasets[2].data.push(d.ruido);
+      if (grafico.data.labels.length > 100) {
+        grafico.data.labels.shift();
+        grafico.data.datasets.forEach((ds) => ds.data.shift());
+      }
+      grafico.update('none');
+    }
+
+    function adicionarLinha(d) {
+      const hora   = new Date(d.timestamp).toLocaleTimeString();
+      const status = calcularStatusGlobal(d.caixa, d.peso, d.ruido);
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${hora}</td><td>${d.caixa}</td><td>${d.peso}</td><td>${d.ruido}</td>
+        <td><span class="badge ${status.cls}">${status.text}</span></td>
+      `;
+      tbody.prepend(row);
+    }
+
+    function atualizarContadorD() {
+      const n = grafico.data.labels.length;
+      document.getElementById('d-table-count').textContent = n > 0 ? `${n} registros` : '';
+    }
+
+    function processarLeituraD(d) {
+      adicionarPonto(d);
+      adicionarLinha(d);
+      atualizarCardsD(d);
+      atualizarContadorD();
+    }
+
+    async function carregarHistorico(id) {
+      try {
+        const res  = await fetch(`/api/colmeias/${encodeURIComponent(id)}/historico`);
+        const hist = await res.json();
+        hist.forEach((d) => { adicionarPonto(d); adicionarLinha(d); });
+        if (hist.length > 0) atualizarCardsD(hist[hist.length - 1]);
+        atualizarContadorD();
+      } catch (e) {
+        console.error('Erro ao carregar histórico:', e);
+      }
+    }
+
+    // ── WebSocket ─────────────────────────────────────────────────────
+    function conectarWS() {
+      const ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.tipo === 'estado-inicial') {
+          msg.colmeias.forEach((c) => {
+            criarCard(c.id);
+            if (c.ultimaLeitura) atualizarCard(c.ultimaLeitura);
+            if (c.latencia !== null) atualizarLatenciaCard({ id: c.id, latencia: c.latencia });
+          });
+          return;
+        }
+        if (msg.tipo === 'colmeia-conectada') {
+          if (!colmeias.has(msg.id)) criarCard(msg.id);
+          return;
+        }
+        if (msg.tipo === 'colmeia-desconectada') {
+          setOffline(msg.id);
+          return;
+        }
+        if (msg.tipo === 'leitura') {
+          atualizarCard(msg);
+          if (modalColmeiaId === msg.id) processarLeituraD(msg);
+          return;
+        }
+        if (msg.tipo === 'latencia') {
+          atualizarLatenciaCard(msg);
+          if (modalColmeiaId === msg.id) {
+            document.getElementById('d-val-latencia').textContent = msg.latencia.toFixed(1);
+            document.getElementById('d-val-jitter').textContent   = msg.jitter.toFixed(1);
+          }
+        }
+      };
+
+      ws.onclose = () => setTimeout(conectarWS, 3000);
+      ws.onerror = () => ws.close();
+    }
+
+    conectarWS();
+  </script>
+
+</body>
+</html>
