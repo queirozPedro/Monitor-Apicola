@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Monitor Apícola</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0f14;
+      color: #e6e6e6;
+    }
+
+    header {
+      background: #121a24;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 1px solid #1f2a38;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      color: #ffffff;
+    }
+
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .card {
+      background: #121a24;
+      border: 1px solid #1f2a38;
+      border-radius: 10px;
+      padding: 20px;
+      min-width: 220px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .card:hover {
+      transform: scale(1.03);
+      border-color: #2d3b52;
+    }
+
+    .card-id {
+      font-size: 13px;
+      color: #9aa4b2;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status {
+      font-size: 14px;
+      font-weight: bold;
+      padding: 6px 10px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    .normal   { background: #14532d; color: #4ade80; }
+    .alert    { background: #7f1d1d; color: #f87171; }
+    .warning  { background: #78350f; color: #fbbf24; }
+    .offline  { background: #2b2f36; color: #9ca3af; }
+
+    .coords {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #9aa4b2;
+    }
+
+    .vazio {
+      color: #4a5568;
+      font-size: 14px;
+      padding: 48px 0;
+      width: 100%;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Monitor Apícola</h1>
+  </header>
+
+  <div class="grid" id="grid">
+    <div class="vazio" id="vazio">Nenhuma colmeia conectada.</div>
+  </div>
+
+  <script>
+    const LIMIAR = 500;
+    const grid   = document.getElementById('grid');
+    const vazio  = document.getElementById('vazio');
+
+    const colmeias = new Map(); // id → { card, status, coords }
+
+    function calcularStatus(data) {
+      const caixaTocado = data.caixa < LIMIAR;
+      const pesoTocado  = data.peso  < LIMIAR;
+      const ruidoTocado = data.ruido < LIMIAR;
+
+      if ((caixaTocado && pesoTocado) || (caixaTocado && ruidoTocado)) return 'alert';
+      if (ruidoTocado && !caixaTocado) return 'warning';
+      return 'normal';
+    }
+
+    const textoStatus = {
+      alert:   '🚨 POSSÍVEL FURTO',
+      warning: '⚠️ ESTRESSE NAS ABELHAS',
+      normal:  '✅ NORMAL',
+      offline: '🔌 DESCONECTADA',
+    };
+
+    function criarCard(id) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-id">${id}</div>
+        <div class="status offline">${textoStatus.offline}</div>
+        <div class="coords">📍 Latitude: --<br>📍 Longitude: --</div>
+      `;
+      card.addEventListener('click', () => {
+        window.location.href = `dashboard.html?id=${encodeURIComponent(id)}`;
+      });
+
+      grid.appendChild(card);
+      vazio.style.display = 'none';
+
+      colmeias.set(id, {
+        card,
+        statusEl: card.querySelector('.status'),
+        coordsEl: card.querySelector('.coords'),
+      });
+    }
+
+    function removerCard(id) {
+      const c = colmeias.get(id);
+      if (!c) return;
+      c.card.remove();
+      colmeias.delete(id);
+      if (colmeias.size === 0) vazio.style.display = '';
+    }
+
+    function setOffline(id) {
+      const c = colmeias.get(id);
+      if (!c) return;
+      c.statusEl.textContent = textoStatus.offline;
+      c.statusEl.className   = 'status offline';
+    }
+
+    function atualizarCard(data) {
+      const c = colmeias.get(data.id);
+      if (!c) return;
+      const cls = calcularStatus(data);
+      c.statusEl.textContent = textoStatus[cls];
+      c.statusEl.className   = `status ${cls}`;
+      if (data.latitude && data.longitude) {
+        c.coordsEl.innerHTML = `📍 Latitude: ${data.latitude}<br>📍 Longitude: ${data.longitude}`;
+      }
+    }
+
+    function conectarWS() {
+      const ws = new WebSocket('ws://localhost:3000');
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.tipo === 'estado-inicial') {
+          msg.colmeias.forEach((c) => {
+            criarCard(c.id);
+            if (c.ultimaLeitura) atualizarCard(c.ultimaLeitura);
+          });
+          return;
+        }
+
+        if (msg.tipo === 'colmeia-conectada') {
+          if (!colmeias.has(msg.id)) criarCard(msg.id);
+          return;
+        }
+
+        if (msg.tipo === 'colmeia-desconectada') {
+          setOffline(msg.id);
+          return;
+        }
+
+        if (msg.tipo === 'leitura') {
+          atualizarCard(msg);
+        }
+      };
+
+      ws.onclose = () => setTimeout(conectarWS, 3000);
+      ws.onerror = () => ws.close();
+    }
+
+    conectarWS();
+  </script>
+
+</body>
+
+</html>
