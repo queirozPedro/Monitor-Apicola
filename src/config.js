@@ -1,6 +1,6 @@
 module.exports = Object.freeze({
-  HTTP_PORT:   3000,
-  WS_URL:      'ws://localhost:3000',
+  HTTP_PORT:   process.env.PORT || 3000,
+  WS_URL:      process.env.WS_URL || 'ws://localhost:3000',
   SERIAL_PORT: 'COM8',
   BAUD_RATE:   115200,
   RECONNECT_MS:    3000,
