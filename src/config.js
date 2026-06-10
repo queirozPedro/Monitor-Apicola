@@ -12,4 +12,5 @@ module.exports = Object.freeze({
   SIM_TRIGGERED_RANGE:  30,
   SIM_CALM_MIN:        1200,
   SIM_CALM_RANGE:        50,
+  PING_INTERVAL_MS:    5000,
 });

@@ -63,6 +63,10 @@ function conectar() {
       id = msg.id;
       console.log(`[colmeia] ID atribuído: ${id}`);
       conectarSerial();
+      return;
+    }
+    if (msg.tipo === 'ping') {
+      wsClient.send(JSON.stringify({ tipo: 'pong', t: msg.t }));
     }
   });
 

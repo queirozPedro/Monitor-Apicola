@@ -41,6 +41,10 @@ function conectar() {
       id = msg.id;
       console.log(`[modulo-teste] ID atribuído: ${id}`);
       iniciarSimulacao();
+      return;
+    }
+    if (msg.tipo === 'ping') {
+      wsClient.send(JSON.stringify({ tipo: 'pong', t: msg.t }));
     }
   });
 
