@@ -356,7 +356,7 @@
 
         <div class="d-cards">
           <div class="d-card" style="--color: #4ade80">
-            <span class="d-card-label">Caixa</span>
+            <span class="d-card-label">Distância</span>
             <span class="d-card-value" id="d-val-caixa">--</span>
             <div class="d-card-time" id="d-time-caixa">--</div>
             <span class="d-card-status" id="d-status-caixa"></span>
@@ -409,7 +409,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>Hora</th><th>Caixa</th><th>Peso</th><th>Ruído</th><th>Status</th>
+                  <th>Hora</th><th>Dist. (cm)</th><th>Peso</th><th>Ruído</th><th>Status</th>
                 </tr>
               </thead>
               <tbody id="d-table-body"></tbody>
@@ -436,14 +436,16 @@
   </div>
 
   <script>
-    const LIMIAR = 500;
+    const LIMIAR             = 500; // limiar touch (peso, ruido)
+    const LIMIAR_DIST_FURTO  = 20;  // cm — tampa aberta/furto
+    const LIMIAR_DIST_ALERTA = 10;  // cm — alerta
 
     // ── Servidor ──────────────────────────────────────────────────────
     // wss://monitor-apicola.onrender.com
     // ws://localhost:3000
 
-    // const WS_URL = 'wss://monitor-apicola.onrender.com';
-    const WS_URL = 'ws://localhost:3000';  
+    const WS_URL = 'wss://monitor-apicola.onrender.com';
+    // const WS_URL = 'ws://localhost:3000';  
 
     // ── Tema ──────────────────────────────────────────────────────────
     const btnTema = document.getElementById('btn-tema');
@@ -470,9 +472,8 @@
     };
 
     function calcularStatus(data) {
-      const cT = data.caixa < LIMIAR, pT = data.peso < LIMIAR, rT = data.ruido < LIMIAR;
-      if ((cT && pT) || (cT && rT)) return 'alert';
-      if (rT && !cT) return 'warning';
+      if (data.caixa >= LIMIAR_DIST_FURTO)  return 'alert';
+      if (data.caixa >= LIMIAR_DIST_ALERTA) return 'warning';
       return 'normal';
     }
 
@@ -638,15 +639,27 @@
     }
 
     function calcularStatusGlobal(caixa, peso, ruido) {
-      const cT = caixa < LIMIAR, pT = peso < LIMIAR, rT = ruido < LIMIAR;
-      if ((cT && pT) || (cT && rT)) return { text: 'FURTO',    cls: 'alert'   };
-      if (rT && !cT)                 return { text: 'ESTRESSE', cls: 'warning' };
+      if (caixa >= LIMIAR_DIST_FURTO)  return { text: 'FURTO',  cls: 'alert'   };
+      if (caixa >= LIMIAR_DIST_ALERTA) return { text: 'ALERTA', cls: 'warning' };
       return { text: 'NORMAL', cls: 'normal' };
+    }
+
+    function statusDistancia(cm) {
+      if (cm >= LIMIAR_DIST_FURTO)  return { text: 'Furto',  cls: 'alert'   };
+      if (cm >= LIMIAR_DIST_ALERTA) return { text: 'Alerta', cls: 'warning' };
+      return { text: 'Normal', cls: 'normal' };
     }
 
     function atualizarCardsD(d) {
       const hora = new Date(d.timestamp).toLocaleTimeString();
-      [['caixa', d.caixa], ['peso', d.peso], ['ruido', d.ruido]].forEach(([key, valor]) => {
+      const sCaixa = statusDistancia(d.caixa);
+      document.getElementById('d-val-caixa').textContent  = (+d.caixa).toFixed(1) + ' cm';
+      document.getElementById('d-time-caixa').textContent = `Última leitura: ${hora}`;
+      const elCaixa = document.getElementById('d-status-caixa');
+      elCaixa.textContent = sCaixa.text;
+      elCaixa.className   = `d-card-status ${sCaixa.cls}`;
+
+      [['peso', d.peso], ['ruido', d.ruido]].forEach(([key, valor]) => {
         const s = statusSensor(valor);
         document.getElementById(`d-val-${key}`).textContent  = valor;
         document.getElementById(`d-time-${key}`).textContent = `Última leitura: ${hora}`;
@@ -674,7 +687,7 @@
       const status = calcularStatusGlobal(d.caixa, d.peso, d.ruido);
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td>${hora}</td><td>${d.caixa}</td><td>${d.peso}</td><td>${d.ruido}</td>
+        <td>${hora}</td><td>${(+d.caixa).toFixed(1)} cm</td><td>${d.peso}</td><td>${d.ruido}</td>
         <td><span class="badge ${status.cls}">${status.text}</span></td>
       `;
       tbody.prepend(row);
