@@ -3,10 +3,12 @@ const { ReadlineParser } = require('@serialport/parser-readline');
 const WebSocket = require('ws');
 const config = require('../config');
 
-let wsClient = null;
-let port = null;
-let stopped = false;
-let id = null;
+let wsClient     = null;
+let port         = null;
+let stopped      = false;
+let id           = null;
+let pendingPingT = null;
+let pingTimeout  = null;
 
 function conectarSerial() {
   if (stopped || !wsClient || wsClient.readyState !== WebSocket.OPEN) return;
@@ -27,7 +29,18 @@ function conectarSerial() {
     const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
     parser.on('data', (line) => {
-      const parts = line.trim().split(',');
+      const trimmed = line.trim();
+
+      if (trimmed === 'PONG') {
+        clearTimeout(pingTimeout);
+        if (pendingPingT !== null && wsClient && wsClient.readyState === WebSocket.OPEN) {
+          wsClient.send(JSON.stringify({ tipo: 'pong', t: pendingPingT }));
+          pendingPingT = null;
+        }
+        return;
+      }
+
+      const parts = trimmed.split(',');
       if (parts.length !== 3) return;
       const [caixa, peso, ruido] = parts.map(Number);
       if ([caixa, peso, ruido].some(isNaN)) return;
@@ -66,7 +79,20 @@ function conectar() {
       return;
     }
     if (msg.tipo === 'ping') {
-      wsClient.send(JSON.stringify({ tipo: 'pong', t: msg.t }));
+      pendingPingT = msg.t;
+      if (port && port.isOpen) {
+        port.write('PING\n');
+        clearTimeout(pingTimeout);
+        pingTimeout = setTimeout(() => {
+          if (pendingPingT !== null && wsClient && wsClient.readyState === WebSocket.OPEN) {
+            wsClient.send(JSON.stringify({ tipo: 'pong', t: pendingPingT }));
+            pendingPingT = null;
+          }
+        }, 1500);
+      } else {
+        wsClient.send(JSON.stringify({ tipo: 'pong', t: msg.t }));
+        pendingPingT = null;
+      }
     }
   });
 

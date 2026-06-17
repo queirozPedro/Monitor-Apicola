@@ -12,7 +12,7 @@ const server = app.listen(config.HTTP_PORT, () => {
 
 const wss = new WebSocketServer({ server });
 
-// fontes: id → { ws, latencia, jitter, latenciaAnterior, pingTimer }
+// fontes: id → { ws, latencia, jitter, latencias, pingTimer }
 const fontes     = new Map();
 const historicos = new Map(); // id → leitura[]
 const contadores = { colmeia: 0, teste: 0 };
@@ -23,6 +23,13 @@ function broadcast(payload) {
   viewers.forEach((ws) => {
     if (ws.readyState === 1) ws.send(msg);
   });
+}
+
+function calcularJitter(amostras) {
+  if (amostras.length < 2) return 0;
+  const media = amostras.reduce((a, b) => a + b, 0) / amostras.length;
+  const variancia = amostras.reduce((a, b) => a + (b - media) ** 2, 0) / amostras.length;
+  return Math.sqrt(variancia);
 }
 
 function iniciarPing(fonteId) {
@@ -44,10 +51,11 @@ wss.on('connection', (ws) => {
       const e = fontes.get(id);
       return {
         id,
-        conectada:    true,
+        conectada:     true,
         ultimaLeitura: historicos.get(id)?.at(-1) ?? null,
-        latencia:     e.latencia,
-        jitter:       e.jitter,
+        historico:     historicos.get(id) ?? [],
+        latencia:      e.latencia,
+        jitter:        e.jitter,
       };
     }),
   }));
@@ -63,7 +71,7 @@ wss.on('connection', (ws) => {
       fonteId = `${classe}-${contadores[classe]}`;
 
       viewers.delete(ws);
-      fontes.set(fonteId, { ws, latencia: null, jitter: null, latenciaAnterior: null, pingTimer: null });
+      fontes.set(fonteId, { ws, latencia: null, jitter: null, latencias: [], pingTimer: null });
       historicos.set(fonteId, []);
 
       ws.send(JSON.stringify({ tipo: 'id-atribuido', id: fonteId }));
@@ -80,11 +88,11 @@ wss.on('connection', (ws) => {
       const estado = fontes.get(fonteId);
       const nova   = rtt / 2;
 
-      estado.jitter = estado.latenciaAnterior !== null
-        ? Math.abs(nova - estado.latenciaAnterior)
-        : 0;
-      estado.latenciaAnterior = estado.latencia;
-      estado.latencia         = nova;
+      estado.latencias.push(nova);
+      if (estado.latencias.length > 50) estado.latencias.shift();
+
+      estado.latencia = nova;
+      estado.jitter   = calcularJitter(estado.latencias);
 
       broadcast({ tipo: 'latencia', id: fonteId, latencia: nova, jitter: estado.jitter });
       return;

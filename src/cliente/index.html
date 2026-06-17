@@ -384,7 +384,7 @@
           <div class="d-card" style="--color: #a78bfa">
             <span class="d-card-label">Jitter</span>
             <span class="d-card-value" id="d-val-jitter">--</span>
-            <div class="d-card-time">ms (variação)</div>
+            <div class="d-card-time">ms (desvio padrão)</div>
           </div>
         </div>
 
@@ -423,6 +423,13 @@
 
   <script>
     const LIMIAR = 500;
+
+    // ── Servidor ──────────────────────────────────────────────────────
+    // wss://monitor-apicola.onrender.com
+    // ws://localhost:3000
+
+    // const WS_URL = 'wss://monitor-apicola.onrender.com';
+    const WS_URL = 'ws://localhost:3000';  
 
     // ── Tema ──────────────────────────────────────────────────────────
     const btnTema = document.getElementById('btn-tema');
@@ -472,6 +479,7 @@
         statusEl:   card.querySelector('.status'),
         coordsEl:   card.querySelector('.coords'),
         latenciaEl: card.querySelector('.latencia'),
+        historico:  [],
       });
     }
 
@@ -668,21 +676,17 @@
       atualizarContadorD();
     }
 
-    async function carregarHistorico(id) {
-      try {
-        const res  = await fetch(`/api/colmeias/${encodeURIComponent(id)}/historico`);
-        const hist = await res.json();
-        hist.forEach((d) => { adicionarPonto(d); adicionarLinha(d); });
-        if (hist.length > 0) atualizarCardsD(hist[hist.length - 1]);
-        atualizarContadorD();
-      } catch (e) {
-        console.error('Erro ao carregar histórico:', e);
-      }
+    function carregarHistorico(id) {
+      const entry = colmeias.get(id);
+      const hist  = entry?.historico ?? [];
+      hist.forEach((d) => { adicionarPonto(d); adicionarLinha(d); });
+      if (hist.length > 0) atualizarCardsD(hist[hist.length - 1]);
+      atualizarContadorD();
     }
 
     // ── WebSocket ─────────────────────────────────────────────────────
     function conectarWS() {
-      const ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
+      const ws = new WebSocket(WS_URL);
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
@@ -690,6 +694,8 @@
         if (msg.tipo === 'estado-inicial') {
           msg.colmeias.forEach((c) => {
             criarCard(c.id);
+            const entry = colmeias.get(c.id);
+            if (c.historico && entry) entry.historico = c.historico;
             if (c.ultimaLeitura) atualizarCard(c.ultimaLeitura);
             if (c.latencia !== null) atualizarLatenciaCard({ id: c.id, latencia: c.latencia });
           });
@@ -705,6 +711,11 @@
         }
         if (msg.tipo === 'leitura') {
           atualizarCard(msg);
+          const entry = colmeias.get(msg.id);
+          if (entry) {
+            entry.historico.push(msg);
+            if (entry.historico.length > 100) entry.historico.shift();
+          }
           if (modalColmeiaId === msg.id) processarLeituraD(msg);
           return;
         }
