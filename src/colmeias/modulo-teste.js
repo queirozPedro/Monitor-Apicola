@@ -6,6 +6,13 @@ let timer = null;
 let stopped = false;
 let id = null;
 
+function distanciaSimulada() {
+  const r = Math.random();
+  if (r < 0.70) return +(5  + Math.random() * 5).toFixed(1);  // 70% normal  (5-10 cm)
+  if (r < 0.85) return +(10 + Math.random() * 10).toFixed(1); // 15% alerta (10-20 cm)
+  return +(20 + Math.random() * 20).toFixed(1);               // 15% furto  (20-40 cm)
+}
+
 function sensorSimulado() {
   const tocado = Math.random() < config.SIM_TRIGGER_PROB;
   return tocado
@@ -17,7 +24,7 @@ function iniciarSimulacao() {
   timer = setInterval(() => {
     if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
     wsClient.send(JSON.stringify({
-      caixa: sensorSimulado(),
+      caixa: distanciaSimulada(),
       peso:  sensorSimulado(),
       ruido: sensorSimulado(),
     }));
