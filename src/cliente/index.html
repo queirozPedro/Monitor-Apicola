@@ -417,6 +417,20 @@
           </div>
         </div>
 
+        <div class="d-table-section">
+          <div class="d-table-header">
+            <span class="d-table-title">Rede</span>
+          </div>
+          <div class="d-table-scroll">
+            <table>
+              <thead>
+                <tr><th>Hora</th><th>Latência (ms)</th><th>Jitter (ms)</th></tr>
+              </thead>
+              <tbody id="d-table-latencia-body"></tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -478,8 +492,9 @@
         card,
         statusEl:   card.querySelector('.status'),
         coordsEl:   card.querySelector('.coords'),
-        latenciaEl: card.querySelector('.latencia'),
-        historico:  [],
+        latenciaEl:         card.querySelector('.latencia'),
+        historico:          [],
+        latenciaHistorico:  [],
       });
     }
 
@@ -536,6 +551,7 @@
 
     function resetarDashboard() {
       tbody.innerHTML = '';
+      document.getElementById('d-table-latencia-body').innerHTML = '';
       document.getElementById('d-table-count').textContent = '';
       document.getElementById('d-val-latencia').textContent = '--';
       document.getElementById('d-val-jitter').textContent   = '--';
@@ -664,6 +680,15 @@
       tbody.prepend(row);
     }
 
+    function adicionarLinhaLatencia(d) {
+      const tbodyLat = document.getElementById('d-table-latencia-body');
+      if (!tbodyLat) return;
+      const hora = new Date(d.timestamp).toLocaleTimeString();
+      const row  = document.createElement('tr');
+      row.innerHTML = `<td>${hora}</td><td>${d.latencia.toFixed(1)}</td><td>${d.jitter.toFixed(1)}</td>`;
+      tbodyLat.prepend(row);
+    }
+
     function atualizarContadorD() {
       const n = grafico.data.labels.length;
       document.getElementById('d-table-count').textContent = n > 0 ? `${n} registros` : '';
@@ -682,6 +707,7 @@
       hist.forEach((d) => { adicionarPonto(d); adicionarLinha(d); });
       if (hist.length > 0) atualizarCardsD(hist[hist.length - 1]);
       atualizarContadorD();
+      (entry?.latenciaHistorico ?? []).forEach((d) => adicionarLinhaLatencia(d));
     }
 
     // ── WebSocket ─────────────────────────────────────────────────────
@@ -721,9 +747,16 @@
         }
         if (msg.tipo === 'latencia') {
           atualizarLatenciaCard(msg);
-          if (modalColmeiaId === msg.id) {
-            document.getElementById('d-val-latencia').textContent = msg.latencia.toFixed(1);
-            document.getElementById('d-val-jitter').textContent   = msg.jitter.toFixed(1);
+          const entryLat = colmeias.get(msg.id);
+          if (entryLat) {
+            const ponto = { latencia: msg.latencia, jitter: msg.jitter, timestamp: Date.now() };
+            entryLat.latenciaHistorico.push(ponto);
+            if (entryLat.latenciaHistorico.length > 20) entryLat.latenciaHistorico.shift();
+            if (modalColmeiaId === msg.id) {
+              document.getElementById('d-val-latencia').textContent = msg.latencia.toFixed(1);
+              document.getElementById('d-val-jitter').textContent   = msg.jitter.toFixed(1);
+              adicionarLinhaLatencia(ponto);
+            }
           }
         }
       };
