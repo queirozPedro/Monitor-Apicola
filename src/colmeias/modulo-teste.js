@@ -15,9 +15,10 @@ function distanciaSimulada() {
 
 function sensorSimulado() {
   const tocado = Math.random() < config.SIM_TRIGGER_PROB;
-  return tocado
+  const raw = tocado
     ? config.SIM_TRIGGERED_MIN + Math.floor(Math.random() * config.SIM_TRIGGERED_RANGE)
     : config.SIM_CALM_MIN      + Math.floor(Math.random() * config.SIM_CALM_RANGE);
+  return config.normalizarSensor(raw);
 }
 
 function iniciarSimulacao() {

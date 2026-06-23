@@ -436,7 +436,8 @@
   </div>
 
   <script>
-    const LIMIAR             = 500; // limiar touch (peso, ruido)
+    const LIMIAR_SENSOR_NORMAL    = 16; // peso/ruido normalizado (≈ raw 1000)
+    const LIMIAR_SENSOR_ALTERACAO = 8;  // peso/ruido normalizado (≈ raw 500)
     const LIMIAR_DIST_FURTO  = 20;  // cm — tampa aberta/furto
     const LIMIAR_DIST_ALERTA = 10;  // cm — alerta
 
@@ -444,8 +445,8 @@
     // wss://monitor-apicola.onrender.com
     // ws://localhost:3000
 
-    const WS_URL = 'wss://monitor-apicola.onrender.com';
-    // const WS_URL = 'ws://localhost:3000';  
+    // const WS_URL = 'wss://monitor-apicola.onrender.com';
+    const WS_URL = 'ws://localhost:3000';  
 
     // ── Tema ──────────────────────────────────────────────────────────
     const btnTema = document.getElementById('btn-tema');
@@ -615,8 +616,8 @@
               grid: { color: '#1a2333' },
               ticks: { color: '#9aa4b2' },
               beginAtZero: false,
-              suggestedMin: 200,
-              suggestedMax: 1300,
+              suggestedMin: 0,
+              suggestedMax: 40,
             },
           },
         },
@@ -633,9 +634,9 @@
 
     // ── Dashboard helpers ─────────────────────────────────────────────
     function statusSensor(valor) {
-      if (valor >= 1000) return { text: 'Normal',    cls: 'normal'  };
-      if (valor >= 500)  return { text: 'Alteração', cls: 'warning' };
-                         return { text: 'Alerta',    cls: 'alert'   };
+      if (valor >= LIMIAR_SENSOR_NORMAL)    return { text: 'Normal',    cls: 'normal'  };
+      if (valor >= LIMIAR_SENSOR_ALTERACAO) return { text: 'Alteração', cls: 'warning' };
+                                            return { text: 'Alerta',    cls: 'alert'   };
     }
 
     function calcularStatusGlobal(caixa, peso, ruido) {

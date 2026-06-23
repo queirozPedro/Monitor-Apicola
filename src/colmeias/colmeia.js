@@ -45,7 +45,11 @@ function conectarSerial() {
       const [caixa, peso, ruido] = parts.map(Number);
       if ([caixa, peso, ruido].some(isNaN)) return;
       if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-        wsClient.send(JSON.stringify({ caixa, peso, ruido }));
+        wsClient.send(JSON.stringify({
+          caixa,
+          peso:  config.normalizarSensor(peso),
+          ruido: config.normalizarSensor(ruido),
+        }));
       }
     });
 
