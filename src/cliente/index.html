@@ -479,11 +479,11 @@
     const LIMIAR_DIST_ALERTA = 10;  // cm — alerta
 
     // ── Servidor ──────────────────────────────────────────────────────
-    // wss://monitor-apicola.onrender.com
-    // ws://localhost:3000
-
-    const WS_URL = 'wss://monitor-apicola.onrender.com';
-    // const WS_URL = 'ws://localhost:3000';  
+    // Conecta automaticamente ao mesmo host que serviu a página:
+    //   - localhost:3000        -> ws://localhost:3000
+    //   - *.onrender.com        -> wss://...onrender.com
+    //   - *.trycloudflare.com   -> wss://...trycloudflare.com
+    const WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
 
     // ── Tema ──────────────────────────────────────────────────────────
     const btnTema = document.getElementById('btn-tema');
