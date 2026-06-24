@@ -56,6 +56,8 @@ wss.on('connection', (ws) => {
         historico:     historicos.get(id) ?? [],
         latencia:      e.latencia,
         jitter:        e.jitter,
+        latencias:     e.latencias ?? [],
+        jitters:       e.jitters ?? [],
       };
     }),
   }));
@@ -71,7 +73,7 @@ wss.on('connection', (ws) => {
       fonteId = `${classe}-${contadores[classe]}`;
 
       viewers.delete(ws);
-      fontes.set(fonteId, { ws, latencia: null, jitter: null, latencias: [], pingTimer: null });
+      fontes.set(fonteId, { ws, latencia: null, jitter: null, latencias: [], jitters: [], pingTimer: null });
       historicos.set(fonteId, []);
 
       ws.send(JSON.stringify({ tipo: 'id-atribuido', id: fonteId }));
@@ -93,6 +95,9 @@ wss.on('connection', (ws) => {
 
       estado.latencia = nova;
       estado.jitter   = calcularJitter(estado.latencias);
+
+      estado.jitters.push(estado.jitter);
+      if (estado.jitters.length > 50) estado.jitters.shift();
 
       broadcast({ tipo: 'latencia', id: fonteId, latencia: nova, jitter: estado.jitter });
       return;

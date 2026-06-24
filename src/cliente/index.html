@@ -233,6 +233,26 @@
       gap: 16px;
       max-width: 66%;
     }
+    .d-stats-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 66%;
+      margin-top: 16px;
+    }
+    .d-stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 13px;
+      margin-top: 10px;
+      color: var(--text-muted);
+    }
+    .d-stat-row span:last-child {
+      font-weight: bold;
+      font-size: 16px;
+      color: var(--color);
+    }
 
     /* ── Dashboard: gráfico ──────────────────────────────────────────── */
     .d-chart-section {
@@ -388,6 +408,23 @@
           </div>
         </div>
 
+        <div class="d-stats-cards">
+          <div class="d-card" style="--color: #38bdf8">
+            <span class="d-card-label">Latência — estatísticas (últimas 50)</span>
+            <div class="d-stat-row"><span>Média</span><span id="d-lat-media">--</span></div>
+            <div class="d-stat-row"><span>Mínima</span><span id="d-lat-min">--</span></div>
+            <div class="d-stat-row"><span>Máxima</span><span id="d-lat-max">--</span></div>
+            <div class="d-stat-row"><span>Desvio padrão</span><span id="d-lat-std">--</span></div>
+          </div>
+          <div class="d-card" style="--color: #a78bfa">
+            <span class="d-card-label">Jitter — estatísticas (últimas 50)</span>
+            <div class="d-stat-row"><span>Média</span><span id="d-jit-media">--</span></div>
+            <div class="d-stat-row"><span>Mínimo</span><span id="d-jit-min">--</span></div>
+            <div class="d-stat-row"><span>Máximo</span><span id="d-jit-max">--</span></div>
+            <div class="d-stat-row"><span>Desvio padrão</span><span id="d-jit-std">--</span></div>
+          </div>
+        </div>
+
         <div class="d-chart-section">
           <div class="d-chart-header">
             <span class="d-chart-title">Leituras em tempo real</span>
@@ -445,8 +482,8 @@
     // wss://monitor-apicola.onrender.com
     // ws://localhost:3000
 
-    // const WS_URL = 'wss://monitor-apicola.onrender.com';
-    const WS_URL = 'ws://localhost:3000';  
+    const WS_URL = 'wss://monitor-apicola.onrender.com';
+    // const WS_URL = 'ws://localhost:3000';  
 
     // ── Tema ──────────────────────────────────────────────────────────
     const btnTema = document.getElementById('btn-tema');
@@ -497,6 +534,8 @@
         latenciaEl:         card.querySelector('.latencia'),
         historico:          [],
         latenciaHistorico:  [],
+        statsLat:           [],
+        statsJit:           [],
       });
     }
 
@@ -557,6 +596,7 @@
       document.getElementById('d-table-count').textContent = '';
       document.getElementById('d-val-latencia').textContent = '--';
       document.getElementById('d-val-jitter').textContent   = '--';
+      limparEstatisticasRede();
       ['caixa', 'peso', 'ruido'].forEach((s) => {
         document.getElementById(`d-val-${s}`).textContent  = '--';
         document.getElementById(`d-time-${s}`).textContent = '--';
@@ -703,6 +743,46 @@
       tbodyLat.prepend(row);
     }
 
+    // ── Estatísticas de rede (janela das últimas 50 medições) ──────────
+    const JANELA_STATS = 50;
+
+    function pushJanela(arr, v) {
+      arr.push(v);
+      if (arr.length > JANELA_STATS) arr.shift();
+    }
+
+    function estatisticas(arr) {
+      if (!arr.length) return null;
+      const n     = arr.length;
+      const soma  = arr.reduce((a, b) => a + b, 0);
+      const media = soma / n;
+      const variancia = arr.reduce((a, b) => a + (b - media) ** 2, 0) / n;
+      return {
+        media,
+        min: Math.min(...arr),
+        max: Math.max(...arr),
+        std: Math.sqrt(variancia),
+      };
+    }
+
+    function preencherStats(prefixo, stats) {
+      const fmt = (v) => (stats ? `${v.toFixed(1)} ms` : '--');
+      document.getElementById(`${prefixo}-media`).textContent = fmt(stats?.media);
+      document.getElementById(`${prefixo}-min`).textContent   = fmt(stats?.min);
+      document.getElementById(`${prefixo}-max`).textContent   = fmt(stats?.max);
+      document.getElementById(`${prefixo}-std`).textContent   = fmt(stats?.std);
+    }
+
+    function renderEstatisticasRede(c) {
+      preencherStats('d-lat', estatisticas(c?.statsLat ?? []));
+      preencherStats('d-jit', estatisticas(c?.statsJit ?? []));
+    }
+
+    function limparEstatisticasRede() {
+      preencherStats('d-lat', null);
+      preencherStats('d-jit', null);
+    }
+
     function atualizarContadorD() {
       const n = grafico.data.labels.length;
       document.getElementById('d-table-count').textContent = n > 0 ? `${n} registros` : '';
@@ -722,6 +802,7 @@
       if (hist.length > 0) atualizarCardsD(hist[hist.length - 1]);
       atualizarContadorD();
       (entry?.latenciaHistorico ?? []).forEach((d) => adicionarLinhaLatencia(d));
+      renderEstatisticasRede(entry);
     }
 
     // ── WebSocket ─────────────────────────────────────────────────────
@@ -736,6 +817,10 @@
             criarCard(c.id);
             const entry = colmeias.get(c.id);
             if (c.historico && entry) entry.historico = c.historico;
+            if (entry) {
+              entry.statsLat = (c.latencias ?? []).slice(-JANELA_STATS);
+              entry.statsJit = (c.jitters ?? []).slice(-JANELA_STATS);
+            }
             if (c.ultimaLeitura) atualizarCard(c.ultimaLeitura);
             if (c.latencia !== null) atualizarLatenciaCard({ id: c.id, latencia: c.latencia });
           });
@@ -766,10 +851,13 @@
             const ponto = { latencia: msg.latencia, jitter: msg.jitter, timestamp: Date.now() };
             entryLat.latenciaHistorico.push(ponto);
             if (entryLat.latenciaHistorico.length > 20) entryLat.latenciaHistorico.shift();
+            pushJanela(entryLat.statsLat, msg.latencia);
+            pushJanela(entryLat.statsJit, msg.jitter);
             if (modalColmeiaId === msg.id) {
               document.getElementById('d-val-latencia').textContent = msg.latencia.toFixed(1);
               document.getElementById('d-val-jitter').textContent   = msg.jitter.toFixed(1);
               adicionarLinhaLatencia(ponto);
+              renderEstatisticasRede(entryLat);
             }
           }
         }
